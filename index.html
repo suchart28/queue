@@ -13,19 +13,12 @@
 
     <style>
         body { font-family: 'Sarabun', sans-serif; }
-        
-        /* Animations */
+        /* Custom Animation for TV */
         @keyframes pulse-green {
             0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
             50% { box-shadow: 0 0 0 20px rgba(16, 185, 129, 0); }
         }
         .animate-pulse-green { animation: pulse-green 2s infinite; }
-        
-        @keyframes fade-in {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in { animation: fade-in 0.3s ease-out forwards; }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800">
@@ -35,18 +28,18 @@
     <script type="module">
         // Import Firebase SDK
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, push, set, onValue, update, remove, get, off } 
+        import { getDatabase, ref, push, set, onValue, update, remove, get, child } 
         from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
         // ==========================================
-        // --- ส่วนตั้งค่า FIREBASE (แก้ไขตรงนี้) ---
+        // --- ส่วนตั้งค่า FIREBASE (ต้องแก้ไขตรงนี้) ---
         // ==========================================
         const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_PROJECT.firebaseapp.com",
-            databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com", // ต้องใส่
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_PROJECT.appspot.com",
+            apiKey: "AIzaSyB...",             // ใส่ API Key
+            authDomain: "PROJECT_ID.firebaseapp.com",
+            databaseURL: "https://PROJECT_ID-default-rtdb.firebaseio.com", // สำคัญ!
+            projectId: "PROJECT_ID",
+            storageBucket: "PROJECT_ID.appspot.com",
             messagingSenderId: "...",
             appId: "..."
         };
@@ -73,103 +66,54 @@
         };
 
         // ==========================================
-        // 1. KIOSK MODE (จุดกดบัตร - ปิด QR อัตโนมัติ)
+        // 1. KIOSK MODE (จุดกดบัตร)
         // ==========================================
         const renderKiosk = (container) => {
-            let resetTimer = null;
-            let currentUnsubscribe = null;
-
-            // ฟังก์ชันรีเซ็ตหน้าจอกลับสู่สภาพเดิม
-            const resetKioskUI = () => {
-                const resultBox = document.getElementById('kiosk-result');
-                const btnGet = document.getElementById('btn-get-q');
-                const welcome = document.getElementById('welcome-text');
-                
-                if(resultBox) resultBox.classList.add('hidden');
-                if(btnGet) btnGet.style.display = 'flex';
-                if(welcome) welcome.style.display = 'block';
-                
-                if(resetTimer) clearTimeout(resetTimer);
-                if(currentUnsubscribe) currentUnsubscribe(); // หยุดฟัง Firebase
-            };
-
             container.innerHTML = `
                 <div class="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-600 to-blue-800 text-white p-4">
-                    <div class="bg-white text-gray-800 p-10 rounded-3xl shadow-2xl text-center max-w-md w-full min-h-[400px] flex flex-col justify-center relative">
-                        
-                        <div id="welcome-text">
-                            <h1 class="text-3xl font-bold mb-2">ยินดีต้อนรับ</h1>
-                            <p class="text-gray-500 mb-8">กรุณากดปุ่มเพื่อรับบัตรคิว</p>
-                        </div>
+                    <div class="bg-white text-gray-800 p-10 rounded-3xl shadow-2xl text-center max-w-md w-full">
+                        <h1 class="text-3xl font-bold mb-2">ยินดีต้อนรับ</h1>
+                        <p class="text-gray-500 mb-8">กรุณากดปุ่มเพื่อรับบัตรคิว</p>
                         
                         <button id="btn-get-q" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-2xl font-bold py-6 rounded-2xl shadow-lg transform transition active:scale-95 flex items-center justify-center gap-3">
                             <i class="fa-solid fa-ticket"></i> กดรับคิว
                         </button>
 
-                        <div id="kiosk-result" class="hidden w-full animate-fade-in flex flex-col items-center">
+                        <div id="kiosk-result" class="hidden mt-8 border-t pt-8 animate-fade-in">
                             <p class="text-gray-500 text-sm">หมายเลขคิวของคุณ</p>
-                            <div id="q-number" class="text-7xl font-black text-blue-600 my-2 tracking-tighter"></div>
-                            
-                            <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 shadow-inner mb-4">
-                                <div id="qr-code"></div>
+                            <div id="q-number" class="text-7xl font-black text-blue-600 my-4 tracking-tighter"></div>
+                            <div class="flex justify-center my-4">
+                                <div id="qr-code" class="p-2 border rounded-lg"></div>
                             </div>
-                            
-                            <p class="text-lg font-bold text-red-500 animate-pulse">
-                                <i class="fa-solid fa-mobile-screen-button"></i> กรุณาสแกนเพื่อรับคิว
-                            </p>
-                            <p class="text-xs text-gray-400 mt-2">(หน้าจอจะปิดเองเมื่อสแกน หรือใน 30 วินาที)</p>
-                            
-                            <button id="btn-cancel" class="mt-6 text-gray-400 underline text-sm hover:text-gray-600">
-                                ปิดหน้าต่าง (Close)
-                            </button>
+                            <p class="text-xs text-gray-400">สแกน QR Code เพื่อติดตามสถานะบนมือถือ</p>
                         </div>
                     </div>
                 </div>
             `;
 
             document.getElementById('btn-get-q').onclick = () => {
-                // สร้างคิวใหม่
                 const qRef = push(ref(db, 'queues'));
+                // สร้างเลขคิวแบบง่าย (A + Random) หรือจะทำ running number ก็ได้
                 const qNum = "A" + Math.floor(100 + Math.random() * 900);
                 
                 set(qRef, {
                     number: qNum,
                     status: 'waiting',
-                    timestamp: Date.now(),
-                    scanned: false // เริ่มต้นยังไม่สแกน
+                    timestamp: Date.now()
                 });
 
-                // UI Changes
-                document.getElementById('btn-get-q').style.display = 'none';
-                document.getElementById('welcome-text').style.display = 'none';
+                // แสดงผล
                 document.getElementById('q-number').innerText = qNum;
                 document.getElementById('kiosk-result').classList.remove('hidden');
                 
-                // QR Generation
+                // Gen QR Code Link
                 const trackingUrl = `${window.location.origin}${window.location.pathname}?mode=user&id=${qRef.key}`;
-                document.getElementById('qr-code').innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(trackingUrl)}" alt="QR" class="mx-auto" />`;
-
-                // 1. ตั้งเวลา 30 วินาที
-                resetTimer = setTimeout(() => {
-                    resetKioskUI();
-                }, 30000);
-
-                // 2. ฟังค่า 'scanned' จาก Firebase
-                // เก็บ function unsubscribe ไว้เพื่อเรียกใช้ตอนจบ
-                currentUnsubscribe = onValue(qRef, (snapshot) => {
-                    const data = snapshot.val();
-                    if (data && data.scanned === true) {
-                        // ถ้าลูกค้าสแกนแล้ว -> ปิดหน้าจอทันที
-                        resetKioskUI();
-                    }
-                });
+                document.getElementById('qr-code').innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(trackingUrl)}" alt="QR" />`;
             };
-
-            document.getElementById('btn-cancel').onclick = resetKioskUI;
         };
 
         // ==========================================
-        // 2. USER MODE (มือถือลูกค้า - ส่งค่าว่าสแกนแล้ว)
+        // 2. USER MODE (มือถือลูกค้า)
         // ==========================================
         const renderUser = (container) => {
             const ticketId = params.get('id');
@@ -177,9 +121,6 @@
                 container.innerHTML = `<div class="p-10 text-center">ไม่พบข้อมูลคิว</div>`;
                 return;
             }
-
-            // --- แจ้ง Firebase ว่าฉันสแกนแล้วนะ ---
-            update(ref(db, 'queues/' + ticketId), { scanned: true });
 
             container.innerHTML = `
                 <div class="min-h-screen bg-gray-50 flex flex-col items-center p-6 transition-colors duration-500" id="user-bg">
@@ -209,7 +150,7 @@
                 const myData = allData[ticketId];
 
                 if (!myData) {
-                    document.getElementById('status-text').innerText = "คิวนี้ถูกยกเลิก";
+                    document.getElementById('status-text').innerText = "คิวนี้ถูกยกเลิก หรือ จบงานแล้ว";
                     return;
                 }
 
@@ -219,8 +160,8 @@
                 const statusTxt = document.getElementById('status-text');
 
                 if (myData.status === 'serving') {
-                    // ถึงคิว
-                    bg.className = "min-h-screen flex flex-col items-center p-6 bg-green-500";
+                    // ถึงคิวแล้ว!
+                    bg.className = "min-h-screen flex flex-col items-center p-6 bg-green-500"; // จอเขียว
                     badge.className = "absolute top-0 left-0 w-full h-4 bg-green-600 animate-pulse";
                     statusTxt.innerHTML = `เชิญที่ช่องบริการ <span class="text-3xl block mt-2 text-green-600">${myData.counter}</span>`;
                     document.getElementById('eta-box').style.display = 'none';
@@ -233,7 +174,7 @@
 
                     // คำนวณคิวรอ
                     let qAhead = 0;
-                    let activeCounters = 3;
+                    let activeCounters = 3; // สมมติ
                     Object.values(allData).forEach(q => {
                         if (q.status === 'waiting' && q.timestamp < myData.timestamp) qAhead++;
                     });
@@ -300,7 +241,7 @@
             const updateUI = (data) => {
                 const queues = Object.entries(data || {}).map(([k, v]) => ({ id: k, ...v }));
                 
-                // My Serving
+                // หาคิวที่ตัวเองกำลัง service
                 const myServing = queues.find(q => q.status === 'serving' && parseInt(q.counter) === currentCounter);
                 if (myServing) {
                     currentQID = myServing.id;
@@ -316,7 +257,7 @@
                     document.getElementById('btn-call').classList.remove('opacity-50');
                 }
 
-                // Waiting List
+                // List Waiting
                 const waiting = queues.filter(q => q.status === 'waiting').sort((a,b) => a.timestamp - b.timestamp);
                 document.getElementById('staff-wait-count').innerText = waiting.length;
                 document.getElementById('staff-wait-list').innerHTML = waiting.map(q => 
@@ -327,8 +268,10 @@
                 ).join('');
             };
 
+            // Event Listeners
             document.getElementById('counter-select').onchange = (e) => {
                 currentCounter = parseInt(e.target.value);
+                // Trigger refresh by re-reading logic (simplified)
                 get(ref(db, 'queues')).then(snap => updateUI(snap.val()));
             };
 
@@ -396,6 +339,7 @@
                 </div>
             `;
 
+            // Enable Sound
             document.getElementById('sound-overlay').onclick = function() {
                 this.remove();
                 speak("ระบบพร้อมทำงาน");
@@ -415,7 +359,7 @@
                 // Serving List
                 const serving = queues.filter(q => q.status === 'serving').sort((a,b) => b.callTime - a.callTime);
                 
-                // Logic พูดเสียง
+                // Logic พูดเสียง (ถ้ามีตัวล่าสุดเปลี่ยนไป)
                 if (serving.length > 0) {
                     const latest = serving[0];
                     const uniqueKey = latest.number + latest.callTime;
