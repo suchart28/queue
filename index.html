@@ -37,7 +37,7 @@
         // --- CONFIG (ใส่ค่าของคุณที่นี่) ---
         // ==========================================
         const firebaseConfig = {
-          apiKey: "AIzaSyDGYuI3yxJbUTc6T_0pm6WiEKZul11tXS0",
+            apiKey: "AIzaSyDGYuI3yxJbUTc6T_0pm6WiEKZul11tXS0",
   authDomain: "suchartwork-1487382986748.firebaseapp.com",
   databaseURL: "https://suchartwork-1487382986748.firebaseio.com",
   projectId: "suchartwork-1487382986748",
@@ -60,7 +60,7 @@
         const AVG_SERVICE_TIME = 5; 
 
         // --------------------------------------------------------
-        // ระบบเสียง (ปรับปรุงใหม่: ดังขึ้น + ยาวขึ้น)
+        // ระบบเสียง (User: Alarm / TV: Normal)
         // --------------------------------------------------------
         const playBeep = (type = 'normal') => {
             try {
@@ -70,36 +70,33 @@
                 const now = ctx.currentTime;
 
                 if (type === 'alarm') {
-                    // --- เสียงเตือนเรียกคิว (ALARM) ---
-                    // สร้างเสียง ปี๊บ-ปี๊บ-ปี๊บ (3 จังหวะ) ให้ดังและแสบหู
+                    // --- เสียงเตือนเรียกคิว User (ALARM: ดังและยาว) ---
                     [0, 0.4, 0.8].forEach(delay => {
                         const osc = ctx.createOscillator();
                         const gain = ctx.createGain();
                         osc.connect(gain);
                         gain.connect(ctx.destination);
 
-                        osc.type = 'square'; // เสียงทรงเหลี่ยม (แหลมกว่า sine)
-                        osc.frequency.setValueAtTime(880, now + delay); // A5 (สูง)
-                        osc.frequency.linearRampToValueAtTime(600, now + delay + 0.3); // ลากเสียงลงเล็กน้อย
+                        osc.type = 'square'; 
+                        osc.frequency.setValueAtTime(880, now + delay); 
+                        osc.frequency.linearRampToValueAtTime(600, now + delay + 0.3); 
 
-                        // Volume: 0.5 (ดังค่อนข้างมาก ระวังลำโพงแตกถ้าใส่ 1.0)
                         gain.gain.setValueAtTime(0.5, now + delay); 
                         gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.3);
 
                         osc.start(now + delay);
                         osc.stop(now + delay + 0.3);
                     });
-
                 } else {
-                    // --- เสียงกดปุ่มปกติ (Normal) ---
+                    // --- เสียงติ๊งหน่อง TV (Normal) ---
                     const osc = ctx.createOscillator();
                     const gain = ctx.createGain();
                     osc.connect(gain);
                     gain.connect(ctx.destination);
                     
-                    osc.type = 'sine'; // เสียงนุ่ม
+                    osc.type = 'sine';
                     osc.frequency.value = 660; 
-                    gain.gain.setValueAtTime(0.1, now); // เบาๆ
+                    gain.gain.setValueAtTime(0.1, now); 
                     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
                     
                     osc.start(now);
@@ -181,7 +178,7 @@
         };
 
         // ==========================================
-        // 2. USER MODE (เสียงดัง + ยาว)
+        // 2. USER MODE
         // ==========================================
         const renderUser = (container) => {
             const ticketId = params.get('id');
@@ -259,10 +256,9 @@
                     statusTxt.innerHTML = `เชิญช่อง <span class="text-3xl block mt-2 text-green-600">${myData.counter}</span>`;
                     document.getElementById('eta-box').style.display = 'none';
 
-                    // --- จุดเปลี่ยน: แจ้งเตือนดังและนานขึ้น ---
                     if (soundEnabled && !notifiedServe) {
-                        playBeep('alarm'); // เสียง ปี๊บ-ปี๊บ-ปี๊บ
-                        vibrateDevice([500, 200, 500, 200, 500]); // สั่นยาว 3 ครั้ง
+                        playBeep('alarm'); 
+                        vibrateDevice([500, 200, 500, 200, 500]); 
                         notifiedServe = true;
                     }
 
@@ -278,7 +274,7 @@
                     document.getElementById('eta-time').innerText = Math.ceil((qAhead * AVG_SERVICE_TIME) / 3) || 1;
 
                     if (qAhead <= 2 && qAhead > 0 && soundEnabled && !notifiedNear) {
-                        playBeep('normal'); // เตือนเบาๆ ว่าใกล้ถึง
+                        playBeep('normal'); 
                         vibrateDevice([200, 100, 200]);
                         notifiedNear = true;
                     }
@@ -287,7 +283,7 @@
         };
 
         // ==========================================
-        // 3. STAFF MODE
+        // 3. STAFF MODE (เพิ่มเป็น 10 Counter)
         // ==========================================
         const renderStaff = (container) => {
             let currentCounter = 1;
@@ -303,6 +299,13 @@
                                     <option value="1">No. 1</option>
                                     <option value="2">No. 2</option>
                                     <option value="3">No. 3</option>
+                                    <option value="4">No. 4</option>
+                                    <option value="5">No. 5</option>
+                                    <option value="6">No. 6</option>
+                                    <option value="7">No. 7</option>
+                                    <option value="8">No. 8</option>
+                                    <option value="9">No. 9</option>
+                                    <option value="10">No. 10</option>
                                 </select>
                             </div>
                         </div>
@@ -375,7 +378,7 @@
         };
 
         // ==========================================
-        // 4. TV DISPLAY MODE (เสียงผู้หญิง)
+        // 4. TV DISPLAY MODE (เสียงผู้ชาย)
         // ==========================================
         const renderTV = (container) => {
             let lastAnnounce = "";
@@ -412,18 +415,19 @@
                 utterance.lang = 'th-TH';
                 utterance.rate = 0.9;
                 
-                // --- Logic การหาเสียงผู้หญิงที่ดีขึ้น ---
+                // --- Logic การหาเสียงผู้ชาย (Male Voice) ---
                 const voices = window.speechSynthesis.getVoices();
-                // 1. หาเสียงที่มีคำว่า "Thai" และ (Female หรือ Google หรือ Premwadee)
-                const femaleVoice = voices.find(v => 
-                    v.lang.includes('th') && 
-                    (v.name.includes('Google') || v.name.includes('Female') || v.name.includes('Premwadee') || v.name.includes('Kanya') || v.name.includes('Narisa'))
-                );
                 
-                if (femaleVoice) {
-                    utterance.voice = femaleVoice;
+                // ค้นหาเสียงที่มี keyword "Male", "Niwat" (Edge), "Pattara" (iOS)
+                const maleVoice = voices.find(v => 
+                    v.lang.includes('th') && 
+                    (v.name.includes('Male') || v.name.includes('Niwat') || v.name.includes('Pattara'))
+                );
+
+                if (maleVoice) {
+                    utterance.voice = maleVoice;
                 } else {
-                    // ถ้าไม่เจอจริงๆ ให้เอาเสียงภาษาไทยอะไรก็ได้ที่มี
+                    // ถ้าไม่เจอเสียงผู้ชาย ให้ใช้เสียงไทยอะไรก็ได้ที่มี (Fall back)
                     const anyThai = voices.find(v => v.lang.includes('th'));
                     if(anyThai) utterance.voice = anyThai;
                 }
@@ -441,7 +445,7 @@
                         lastAnnounce = uniqueKey;
                         playBeep('normal'); 
                         setTimeout(() => {
-                            speak(`เชิญคิว, ${latest.number},, ที่ช่องบริการ, ${latest.counter} ค่ะ`);
+                            speak(`เชิญคิว, ${latest.number},, ที่ช่องบริการ, ${latest.counter} ครับ`);
                         }, 500);
                     }
                 }
