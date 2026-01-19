@@ -2,7 +2,7 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Smart Queue System</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -15,11 +15,13 @@
 
     <style>
         body { font-family: 'Sarabun', sans-serif; }
+        
         @keyframes pulse-green {
             0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
             50% { box-shadow: 0 0 0 20px rgba(16, 185, 129, 0); }
         }
         .animate-pulse-green { animation: pulse-green 2s infinite; }
+        
         @keyframes fade-in {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
@@ -71,7 +73,7 @@
         };
 
         // ==========================================
-        // 1. KIOSK MODE (เพิ่มปุ่ม Save Image)
+        // 1. KIOSK MODE
         // ==========================================
         const renderKiosk = (container) => {
             let resetTimer = null;
@@ -92,39 +94,25 @@
 
             container.innerHTML = `
                 <div class="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-600 to-blue-800 text-white p-4">
-                    <div class="bg-white text-gray-800 p-8 rounded-3xl shadow-2xl text-center max-w-md w-full min-h-[450px] flex flex-col justify-center relative">
-                        
+                    <div class="bg-white text-gray-800 p-10 rounded-3xl shadow-2xl text-center max-w-md w-full min-h-[400px] flex flex-col justify-center relative">
                         <div id="welcome-text">
                             <h1 class="text-3xl font-bold mb-2">ยินดีต้อนรับ</h1>
                             <p class="text-gray-500 mb-8">กรุณากดปุ่มเพื่อรับบัตรคิว</p>
                         </div>
-                        
                         <button id="btn-get-q" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-2xl font-bold py-6 rounded-2xl shadow-lg transform transition active:scale-95 flex items-center justify-center gap-3">
                             <i class="fa-solid fa-ticket"></i> กดรับคิว
                         </button>
-
                         <div id="kiosk-result" class="hidden w-full animate-fade-in flex flex-col items-center">
-                            
-                            <div id="ticket-card" class="bg-white p-6 rounded-xl border-2 border-dashed border-gray-300 w-full mb-4">
-                                <h3 class="text-gray-400 text-sm font-bold uppercase tracking-wider mb-2">Smart Queue Ticket</h3>
-                                <div id="q-number" class="text-7xl font-black text-blue-600 my-2 tracking-tighter leading-none"></div>
-                                <div class="text-gray-400 text-xs mb-4" id="q-time"></div>
-                                
-                                <div class="bg-gray-50 p-2 rounded-lg inline-block">
-                                    <div id="qr-code"></div>
-                                </div>
-                                <p class="text-xs text-red-500 font-bold mt-2">สแกนเพื่อติดตามคิว</p>
+                            <p class="text-gray-500 text-sm">หมายเลขคิวของคุณ</p>
+                            <div id="q-number" class="text-7xl font-black text-blue-600 my-2 tracking-tighter"></div>
+                            <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 shadow-inner mb-4">
+                                <div id="qr-code"></div>
                             </div>
-
-                            <div class="flex gap-2 w-full">
-                                <button id="btn-save-img" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-3 rounded-xl font-bold text-sm shadow-md transition">
-                                    <i class="fa-solid fa-download"></i> บันทึกรูป
-                                </button>
-                                <button id="btn-cancel" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-600 py-3 rounded-xl font-bold text-sm transition">
-                                    ปิดหน้าต่าง
-                                </button>
-                            </div>
-                            <p class="text-xs text-gray-300 mt-4">(ปิดอัตโนมัติใน 30 วินาที)</p>
+                            <p class="text-lg font-bold text-red-500 animate-pulse">
+                                <i class="fa-solid fa-mobile-screen-button"></i> กรุณาสแกนเพื่อรับคิว
+                            </p>
+                            <p class="text-xs text-gray-400 mt-2">(หน้าจอจะปิดเองเมื่อสแกน หรือใน 30 วินาที)</p>
+                            <button id="btn-cancel" class="mt-6 text-gray-400 underline text-sm hover:text-gray-600">ปิดหน้าต่าง</button>
                         </div>
                     </div>
                 </div>
@@ -133,8 +121,6 @@
             document.getElementById('btn-get-q').onclick = () => {
                 const qRef = push(ref(db, 'queues'));
                 const qNum = "A" + Math.floor(100 + Math.random() * 900);
-                const now = new Date();
-                const timeString = now.toLocaleDateString('th-TH') + ' ' + now.toLocaleTimeString('th-TH', {hour: '2-digit', minute:'2-digit'});
                 
                 set(qRef, {
                     number: qNum,
@@ -143,34 +129,17 @@
                     scanned: false 
                 });
 
-                // UI Update
                 document.getElementById('btn-get-q').style.display = 'none';
                 document.getElementById('welcome-text').style.display = 'none';
-                
                 document.getElementById('q-number').innerText = qNum;
-                document.getElementById('q-time').innerText = timeString;
                 document.getElementById('kiosk-result').classList.remove('hidden');
                 
-                // QR Generation (ใส่ crossOrigin='anonymous' เพื่อให้ html2canvas ทำงานได้)
                 const trackingUrl = `${window.location.origin}${window.location.pathname}?mode=user&id=${qRef.key}`;
-                const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(trackingUrl)}`;
-                document.getElementById('qr-code').innerHTML = `<img src="${qrUrl}" alt="QR" class="mx-auto mix-blend-multiply" crossOrigin="anonymous" />`;
+                document.getElementById('qr-code').innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(trackingUrl)}" alt="QR" class="mx-auto" />`;
 
-                // Logic Save Image
-                document.getElementById('btn-save-img').onclick = () => {
-                    const ticketElement = document.getElementById('ticket-card');
-                    html2canvas(ticketElement, { useCORS: true, scale: 2 }).then(canvas => {
-                        const link = document.createElement('a');
-                        link.download = `Queue-${qNum}.png`;
-                        link.href = canvas.toDataURL("image/png");
-                        link.click();
-                    }).catch(err => alert("บันทึกภาพไม่สำเร็จ: " + err));
-                };
-
-                // Auto Close Timer
                 resetTimer = setTimeout(() => resetKioskUI(), 30000);
                 
-                // Listen for Scan
+                // รอฟังว่า User Scan หรือยัง
                 currentUnsubscribe = onValue(qRef, (snapshot) => {
                     const data = snapshot.val();
                     if (data && data.scanned === true) resetKioskUI();
@@ -180,37 +149,74 @@
         };
 
         // ==========================================
-        // 2. USER MODE
+        // 2. USER MODE (เพิ่มปุ่ม Save ที่นี่)
         // ==========================================
         const renderUser = (container) => {
             const ticketId = params.get('id');
             if (!ticketId) { container.innerHTML = `<div class="p-10 text-center">ไม่พบข้อมูลคิว</div>`; return; }
+            
+            // แจ้งเตือน Kiosk ว่าสแกนแล้ว
             update(ref(db, 'queues/' + ticketId), { scanned: true });
 
             container.innerHTML = `
                 <div class="min-h-screen bg-gray-50 flex flex-col items-center p-6 transition-colors duration-500" id="user-bg">
-                    <div class="bg-white w-full max-w-sm rounded-3xl shadow-xl p-8 text-center mt-10 relative overflow-hidden">
+                    
+                    <div id="capture-area" class="bg-white w-full max-w-sm rounded-3xl shadow-xl p-8 text-center mt-6 relative overflow-hidden border border-gray-100">
+                        <div class="border-b border-gray-100 pb-4 mb-4">
+                            <div class="text-xs font-bold text-gray-400 uppercase tracking-widest">Digital Queue Ticket</div>
+                            <div class="text-xs text-gray-400" id="timestamp-display"></div>
+                        </div>
+
                         <div id="status-badge" class="absolute top-0 left-0 w-full h-2 bg-gray-300"></div>
-                        <p class="text-gray-500 mt-4">คิวของคุณ</p>
-                        <h1 id="my-q" class="text-6xl font-black text-gray-800 my-2">-</h1>
-                        <div class="bg-gray-50 rounded-xl p-4 my-6 border border-gray-100">
+                        
+                        <p class="text-gray-500 mt-2">คิวของคุณ</p>
+                        <h1 id="my-q" class="text-6xl font-black text-gray-800 my-2 tracking-tighter">-</h1>
+                        
+                        <div class="bg-blue-50 rounded-xl p-4 my-4 border border-blue-100">
                             <p class="text-lg font-bold text-gray-700" id="status-text">กำลังโหลด...</p>
                             <div id="eta-box" class="mt-2 text-sm text-gray-500">
-                                อีกประมาณ <span id="eta-time" class="text-blue-600 font-bold text-xl">-</span> นาที
+                                รออีก <span id="q-ahead" class="font-bold">0</span> คิว (~<span id="eta-time">-</span> นาที)
                             </div>
                         </div>
-                        <div class="text-xs text-gray-400"><i class="fa-solid fa-bell"></i> ระบบจะเปลี่ยนสีหน้าจอเมื่อถึงคิว</div>
+
+                        <div class="text-[10px] text-gray-300 mt-2">ID: ${ticketId.substring(1,8)}</div>
                     </div>
-                    <div id="q-info" class="mt-8 text-gray-400 text-sm"></div>
+
+                    <button id="btn-save-ticket" class="mt-6 bg-emerald-500 hover:bg-emerald-600 text-white py-3 px-8 rounded-full shadow-lg font-bold flex items-center gap-2 transform active:scale-95 transition">
+                        <i class="fa-solid fa-download"></i> บันทึกรูปบัตรคิว
+                    </button>
+
+                    <div id="q-info" class="mt-4 text-gray-400 text-xs text-center">
+                        <i class="fa-solid fa-bell"></i> กรุณาแสดงหน้านี้แก่เจ้าหน้าที่
+                    </div>
                 </div>
             `;
 
+            // Logic การบันทึกภาพ
+            document.getElementById('btn-save-ticket').onclick = () => {
+                const captureArea = document.getElementById('capture-area');
+                
+                // ใช้ html2canvas จับภาพ div
+                html2canvas(captureArea, { scale: 2 }).then(canvas => {
+                    const link = document.createElement('a');
+                    link.download = `Queue-Ticket.png`;
+                    link.href = canvas.toDataURL("image/png");
+                    link.click();
+                }).catch(err => {
+                    alert('ไม่สามารถบันทึกภาพได้ใน Browser นี้ กรุณาแคปหน้าจอแทน');
+                });
+            };
+
+            // Logic Firebase Realtime
             onValue(ref(db, 'queues'), (snapshot) => {
                 const allData = snapshot.val() || {};
                 const myData = allData[ticketId];
                 if (!myData) { document.getElementById('status-text').innerText = "คิวนี้ถูกยกเลิก"; return; }
 
                 document.getElementById('my-q').innerText = myData.number;
+                const date = new Date(myData.timestamp);
+                document.getElementById('timestamp-display').innerText = date.toLocaleDateString('th-TH') + ' ' + date.toLocaleTimeString('th-TH', {hour:'2-digit', minute:'2-digit'});
+
                 const bg = document.getElementById('user-bg');
                 const badge = document.getElementById('status-badge');
                 const statusTxt = document.getElementById('status-text');
@@ -218,17 +224,19 @@
                 if (myData.status === 'serving') {
                     bg.className = "min-h-screen flex flex-col items-center p-6 bg-green-500";
                     badge.className = "absolute top-0 left-0 w-full h-4 bg-green-600 animate-pulse";
-                    statusTxt.innerHTML = `เชิญที่ช่องบริการ <span class="text-3xl block mt-2 text-green-600">${myData.counter}</span>`;
+                    statusTxt.innerHTML = `เชิญช่อง <span class="text-3xl block mt-2 text-green-600">${myData.counter}</span>`;
                     document.getElementById('eta-box').style.display = 'none';
                 } else if (myData.status === 'waiting') {
                     bg.className = "min-h-screen flex flex-col items-center p-6 bg-gray-50";
                     badge.className = "absolute top-0 left-0 w-full h-2 bg-yellow-400";
                     statusTxt.innerText = "กำลังรอเรียก...";
                     document.getElementById('eta-box').style.display = 'block';
+                    
                     let qAhead = 0;
                     Object.values(allData).forEach(q => { if (q.status === 'waiting' && q.timestamp < myData.timestamp) qAhead++; });
+                    
+                    document.getElementById('q-ahead').innerText = qAhead;
                     document.getElementById('eta-time').innerText = Math.ceil((qAhead * AVG_SERVICE_TIME) / 3) || 1;
-                    document.getElementById('q-info').innerText = `มีคิวรอก่อนหน้าคุณ ${qAhead} คิว`;
                 }
             });
         };
