@@ -6,22 +6,17 @@
     <title>Smart Queue System</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
-    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;800&display=swap" rel="stylesheet">
-
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 
     <style>
         body { font-family: 'Sarabun', sans-serif; }
-        
         @keyframes pulse-green {
             0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
             50% { box-shadow: 0 0 0 20px rgba(16, 185, 129, 0); }
         }
         .animate-pulse-green { animation: pulse-green 2s infinite; }
-        
         @keyframes fade-in {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
@@ -39,7 +34,7 @@
         from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
         // ==========================================
-        // --- ส่วนตั้งค่า FIREBASE (ใส่ค่าของคุณตรงนี้) ---
+        // --- CONFIG (ใส่ค่าของคุณที่นี่) ---
         // ==========================================
         const firebaseConfig = {
           apiKey: "AIzaSyDGYuI3yxJbUTc6T_0pm6WiEKZul11tXS0",
@@ -54,44 +49,65 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // --- Global Variables & Helpers ---
+        // Pre-load voices
+        let allVoices = [];
+        window.speechSynthesis.onvoiceschanged = () => {
+            allVoices = window.speechSynthesis.getVoices();
+        };
+
         const params = new URLSearchParams(window.location.search);
         const mode = params.get('mode') || 'kiosk'; 
-        const AVG_SERVICE_TIME = 5; // เวลาเฉลี่ยต่อคน (นาที)
+        const AVG_SERVICE_TIME = 5; 
 
-        // ฟังก์ชันสร้างเสียง Beep (ไม่ใช้ไฟล์ mp3 เพื่อลดขนาดโค้ด)
+        // --------------------------------------------------------
+        // ระบบเสียง (ปรับปรุงใหม่: ดังขึ้น + ยาวขึ้น)
+        // --------------------------------------------------------
         const playBeep = (type = 'normal') => {
             try {
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
                 if (!AudioContext) return;
-                
                 const ctx = new AudioContext();
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-                
-                if (type === 'alert') {
-                    // เสียงเตือนสูง (เมื่อถูกเรียก)
-                    osc.type = 'square';
-                    osc.frequency.setValueAtTime(880, ctx.currentTime); // A5
-                    osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.5);
-                } else {
-                    // เสียงเตือนปกติ (เมื่อใกล้ถึงคิว)
-                    osc.type = 'sine';
-                    osc.frequency.value = 660; // E5
-                }
+                const now = ctx.currentTime;
 
-                gain.gain.setValueAtTime(0.1, ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
-                
-                osc.start();
-                osc.stop(ctx.currentTime + 0.5);
+                if (type === 'alarm') {
+                    // --- เสียงเตือนเรียกคิว (ALARM) ---
+                    // สร้างเสียง ปี๊บ-ปี๊บ-ปี๊บ (3 จังหวะ) ให้ดังและแสบหู
+                    [0, 0.4, 0.8].forEach(delay => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+
+                        osc.type = 'square'; // เสียงทรงเหลี่ยม (แหลมกว่า sine)
+                        osc.frequency.setValueAtTime(880, now + delay); // A5 (สูง)
+                        osc.frequency.linearRampToValueAtTime(600, now + delay + 0.3); // ลากเสียงลงเล็กน้อย
+
+                        // Volume: 0.5 (ดังค่อนข้างมาก ระวังลำโพงแตกถ้าใส่ 1.0)
+                        gain.gain.setValueAtTime(0.5, now + delay); 
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.3);
+
+                        osc.start(now + delay);
+                        osc.stop(now + delay + 0.3);
+                    });
+
+                } else {
+                    // --- เสียงกดปุ่มปกติ (Normal) ---
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    
+                    osc.type = 'sine'; // เสียงนุ่ม
+                    osc.frequency.value = 660; 
+                    gain.gain.setValueAtTime(0.1, now); // เบาๆ
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+                    
+                    osc.start(now);
+                    osc.stop(now + 0.3);
+                }
             } catch (e) { console.error("Audio Error", e); }
         };
 
-        // ฟังก์ชันสั่น (เฉพาะ Android)
         const vibrateDevice = (pattern) => {
             if (navigator.vibrate) navigator.vibrate(pattern);
         };
@@ -110,20 +126,16 @@
         const renderKiosk = (container) => {
             let resetTimer = null;
             let currentUnsubscribe = null;
-
             const resetKioskUI = () => {
                 const resultBox = document.getElementById('kiosk-result');
                 const btnGet = document.getElementById('btn-get-q');
                 const welcome = document.getElementById('welcome-text');
-                
                 if(resultBox) resultBox.classList.add('hidden');
                 if(btnGet) btnGet.style.display = 'flex';
                 if(welcome) welcome.style.display = 'block';
-                
                 if(resetTimer) clearTimeout(resetTimer);
                 if(currentUnsubscribe) currentUnsubscribe(); 
             };
-
             container.innerHTML = `
                 <div class="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-600 to-blue-800 text-white p-4">
                     <div class="bg-white text-gray-800 p-10 rounded-3xl shadow-2xl text-center max-w-md w-full min-h-[400px] flex flex-col justify-center relative">
@@ -149,30 +161,17 @@
                     </div>
                 </div>
             `;
-
             document.getElementById('btn-get-q').onclick = () => {
                 const qRef = push(ref(db, 'queues'));
                 const qNum = "A" + Math.floor(100 + Math.random() * 900);
-                
-                set(qRef, {
-                    number: qNum,
-                    status: 'waiting',
-                    timestamp: Date.now(),
-                    scanned: false 
-                });
-
+                set(qRef, { number: qNum, status: 'waiting', timestamp: Date.now(), scanned: false });
                 document.getElementById('btn-get-q').style.display = 'none';
                 document.getElementById('welcome-text').style.display = 'none';
                 document.getElementById('q-number').innerText = qNum;
                 document.getElementById('kiosk-result').classList.remove('hidden');
-                
-                // สร้าง QR Link
                 const trackingUrl = `${window.location.origin}${window.location.pathname}?mode=user&id=${qRef.key}`;
                 document.getElementById('qr-code').innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(trackingUrl)}" alt="QR" class="mx-auto" />`;
-
                 resetTimer = setTimeout(() => resetKioskUI(), 30000);
-                
-                // ถ้าลูกค้าสแกน ให้ reset หน้าจอทันที
                 currentUnsubscribe = onValue(qRef, (snapshot) => {
                     const data = snapshot.val();
                     if (data && data.scanned === true) resetKioskUI();
@@ -182,37 +181,30 @@
         };
 
         // ==========================================
-        // 2. USER MODE (เพิ่มเสียง + สั่น + Save รูป)
+        // 2. USER MODE (เสียงดัง + ยาว)
         // ==========================================
         const renderUser = (container) => {
             const ticketId = params.get('id');
             let soundEnabled = false;
-            let notifiedNear = false;   // ป้องกันเสียงดังซ้ำ
-            let notifiedServe = false;  // ป้องกันเสียงดังซ้ำ
+            let notifiedNear = false;
+            let notifiedServe = false;
 
             if (!ticketId) { container.innerHTML = `<div class="p-10 text-center">ไม่พบข้อมูลคิว</div>`; return; }
-            
-            // แจ้ง Kiosk ว่าสแกนแล้ว
             update(ref(db, 'queues/' + ticketId), { scanned: true });
 
             container.innerHTML = `
                 <div class="min-h-screen bg-gray-50 flex flex-col items-center p-6 transition-colors duration-500" id="user-bg">
-                    
-                    <button id="btn-enable-sound" class="mb-4 bg-gray-200 text-gray-600 px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 shadow-sm">
-                        <i class="fa-solid fa-volume-xmark"></i> แตะเพื่อเปิดแจ้งเตือนเสียง
+                    <button id="btn-enable-sound" class="mb-4 bg-gray-200 text-gray-600 px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 shadow-sm animate-bounce">
+                        <i class="fa-solid fa-volume-xmark"></i> แตะเพื่อเปิดเสียงแจ้งเตือน
                     </button>
-
                     <div id="capture-area" class="bg-white w-full max-w-sm rounded-3xl shadow-xl p-8 text-center relative overflow-hidden border border-gray-100">
                         <div class="border-b border-gray-100 pb-4 mb-4">
                             <div class="text-xs font-bold text-gray-400 uppercase tracking-widest">Digital Ticket</div>
                             <div class="text-xs text-gray-400" id="timestamp-display"></div>
                         </div>
-
                         <div id="status-badge" class="absolute top-0 left-0 w-full h-2 bg-gray-300"></div>
-                        
                         <p class="text-gray-500 mt-2">คิวของคุณ</p>
                         <h1 id="my-q" class="text-6xl font-black text-gray-800 my-2 tracking-tighter">-</h1>
-                        
                         <div class="bg-blue-50 rounded-xl p-4 my-4 border border-blue-100">
                             <p class="text-lg font-bold text-gray-700" id="status-text">กำลังโหลด...</p>
                             <div id="eta-box" class="mt-2 text-sm text-gray-500">
@@ -221,39 +213,33 @@
                         </div>
                         <div class="text-[10px] text-gray-300 mt-2">ID: ${ticketId.substring(1,8)}</div>
                     </div>
-
                     <button id="btn-save-ticket" class="mt-6 bg-emerald-500 hover:bg-emerald-600 text-white py-3 px-8 rounded-full shadow-lg font-bold flex items-center gap-2 transform active:scale-95 transition">
                         <i class="fa-solid fa-download"></i> บันทึกรูปบัตรคิว
                     </button>
-
                     <div id="q-info" class="mt-4 text-gray-400 text-xs text-center">
                         <i class="fa-solid fa-bell"></i> เปิดหน้านี้ค้างไว้เพื่อรับการแจ้งเตือน
                     </div>
                 </div>
             `;
 
-            // Logic เปิดเสียง (Browser ต้องให้ User กดก่อน)
             const btnSound = document.getElementById('btn-enable-sound');
             btnSound.onclick = () => {
                 soundEnabled = true;
-                playBeep('normal'); // ทดสอบเสียงทีนึง
+                playBeep('normal');
                 vibrateDevice([100]);
                 btnSound.className = "mb-4 bg-green-100 text-green-600 px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 shadow-sm";
                 btnSound.innerHTML = `<i class="fa-solid fa-volume-high"></i> เปิดเสียงแล้ว`;
             };
 
-            // Logic Save Image
             document.getElementById('btn-save-ticket').onclick = () => {
-                const captureArea = document.getElementById('capture-area');
-                html2canvas(captureArea, { scale: 2 }).then(canvas => {
+                html2canvas(document.getElementById('capture-area'), { scale: 2 }).then(canvas => {
                     const link = document.createElement('a');
                     link.download = `Queue-Ticket.png`;
                     link.href = canvas.toDataURL("image/png");
                     link.click();
-                }).catch(err => alert('Error saving image: ' + err));
+                });
             };
 
-            // Logic Monitor Queue
             onValue(ref(db, 'queues'), (snapshot) => {
                 const allData = snapshot.val() || {};
                 const myData = allData[ticketId];
@@ -267,21 +253,19 @@
                 const badge = document.getElementById('status-badge');
                 const statusTxt = document.getElementById('status-text');
 
-                // 1. สถานะ: ถึงคิวแล้ว (Serving)
                 if (myData.status === 'serving') {
                     bg.className = "min-h-screen flex flex-col items-center p-6 bg-green-500";
                     badge.className = "absolute top-0 left-0 w-full h-4 bg-green-600 animate-pulse";
                     statusTxt.innerHTML = `เชิญช่อง <span class="text-3xl block mt-2 text-green-600">${myData.counter}</span>`;
                     document.getElementById('eta-box').style.display = 'none';
 
-                    // แจ้งเตือน (ถ้ายังไม่แจ้ง)
+                    // --- จุดเปลี่ยน: แจ้งเตือนดังและนานขึ้น ---
                     if (soundEnabled && !notifiedServe) {
-                        playBeep('alert'); // เสียงดัง
-                        vibrateDevice([500, 200, 500]); // สั่นยาว
+                        playBeep('alarm'); // เสียง ปี๊บ-ปี๊บ-ปี๊บ
+                        vibrateDevice([500, 200, 500, 200, 500]); // สั่นยาว 3 ครั้ง
                         notifiedServe = true;
                     }
 
-                // 2. สถานะ: รอคิว (Waiting)
                 } else if (myData.status === 'waiting') {
                     bg.className = "min-h-screen flex flex-col items-center p-6 bg-gray-50";
                     badge.className = "absolute top-0 left-0 w-full h-2 bg-yellow-400";
@@ -290,14 +274,12 @@
                     
                     let qAhead = 0;
                     Object.values(allData).forEach(q => { if (q.status === 'waiting' && q.timestamp < myData.timestamp) qAhead++; });
-                    
                     document.getElementById('q-ahead').innerText = qAhead;
                     document.getElementById('eta-time').innerText = Math.ceil((qAhead * AVG_SERVICE_TIME) / 3) || 1;
 
-                    // แจ้งเตือนเมื่อใกล้ถึง (เหลือ <= 2 คิว)
                     if (qAhead <= 2 && qAhead > 0 && soundEnabled && !notifiedNear) {
-                        playBeep('normal'); // เสียงเตือนเบาๆ
-                        vibrateDevice([200, 100, 200]); // สั่นสั้นๆ
+                        playBeep('normal'); // เตือนเบาๆ ว่าใกล้ถึง
+                        vibrateDevice([200, 100, 200]);
                         notifiedNear = true;
                     }
                 }
@@ -310,7 +292,6 @@
         const renderStaff = (container) => {
             let currentCounter = 1;
             let currentQID = null;
-
             container.innerHTML = `
                 <div class="min-h-screen bg-slate-100 p-4 md:p-8">
                     <div class="max-w-4xl mx-auto">
@@ -352,11 +333,9 @@
                     <div class="text-center mt-8"><button id="btn-reset" class="text-xs text-red-300 underline">Reset System</button></div>
                 </div>
             `;
-
             const updateUI = (data) => {
                 const queues = Object.entries(data || {}).map(([k, v]) => ({ id: k, ...v }));
                 const myServing = queues.find(q => q.status === 'serving' && parseInt(q.counter) === currentCounter);
-                
                 if (myServing) {
                     currentQID = myServing.id;
                     document.getElementById('staff-current-q').innerText = myServing.number;
@@ -370,7 +349,6 @@
                     document.getElementById('btn-call').disabled = false;
                     document.getElementById('btn-call').classList.remove('opacity-50');
                 }
-
                 const waiting = queues.filter(q => q.status === 'waiting').sort((a,b) => a.timestamp - b.timestamp);
                 document.getElementById('staff-wait-count').innerText = waiting.length;
                 document.getElementById('staff-wait-list').innerHTML = waiting.map(q => 
@@ -380,7 +358,6 @@
                      </li>`
                 ).join('');
             };
-
             document.getElementById('counter-select').onchange = (e) => {
                 currentCounter = parseInt(e.target.value);
                 get(ref(db, 'queues')).then(snap => updateUI(snap.val()));
@@ -398,11 +375,10 @@
         };
 
         // ==========================================
-        // 4. TV DISPLAY MODE
+        // 4. TV DISPLAY MODE (เสียงผู้หญิง)
         // ==========================================
         const renderTV = (container) => {
             let lastAnnounce = "";
-
             container.innerHTML = `
                 <div class="relative w-screen h-screen bg-slate-900 text-white overflow-hidden flex">
                     <div id="sound-overlay" class="absolute inset-0 bg-black/90 z-50 flex items-center justify-center cursor-pointer">
@@ -425,10 +401,9 @@
                     </div>
                 </div>
             `;
-
             document.getElementById('sound-overlay').onclick = function() {
                 this.remove();
-                playBeep('normal'); // ทดสอบเสียง
+                playBeep('normal');
             };
 
             const speak = (text) => {
@@ -437,13 +412,21 @@
                 utterance.lang = 'th-TH';
                 utterance.rate = 0.9;
                 
-                // พยายามเลือกเสียงผู้หญิงภาษาไทย
+                // --- Logic การหาเสียงผู้หญิงที่ดีขึ้น ---
                 const voices = window.speechSynthesis.getVoices();
+                // 1. หาเสียงที่มีคำว่า "Thai" และ (Female หรือ Google หรือ Premwadee)
                 const femaleVoice = voices.find(v => 
-                    v.lang === 'th-TH' && 
-                    (v.name.includes('Female') || v.name.includes('Wanya') || v.name.includes('Premwadee'))
+                    v.lang.includes('th') && 
+                    (v.name.includes('Google') || v.name.includes('Female') || v.name.includes('Premwadee') || v.name.includes('Kanya') || v.name.includes('Narisa'))
                 );
-                if (femaleVoice) utterance.voice = femaleVoice;
+                
+                if (femaleVoice) {
+                    utterance.voice = femaleVoice;
+                } else {
+                    // ถ้าไม่เจอจริงๆ ให้เอาเสียงภาษาไทยอะไรก็ได้ที่มี
+                    const anyThai = voices.find(v => v.lang.includes('th'));
+                    if(anyThai) utterance.voice = anyThai;
+                }
 
                 window.speechSynthesis.speak(utterance);
             };
@@ -451,20 +434,17 @@
             onValue(ref(db, 'queues'), (snapshot) => {
                 const queues = Object.values(snapshot.val() || {});
                 const serving = queues.filter(q => q.status === 'serving').sort((a,b) => b.callTime - a.callTime);
-                
                 if (serving.length > 0) {
                     const latest = serving[0];
                     const uniqueKey = latest.number + latest.callTime;
-                    // ถ้ามีคิวใหม่ที่ยังไม่เคยประกาศ
                     if (lastAnnounce !== uniqueKey) {
                         lastAnnounce = uniqueKey;
-                        playBeep('alert'); // เสียงติ๊งหน่องนำหน้า
+                        playBeep('normal'); 
                         setTimeout(() => {
                             speak(`เชิญคิว, ${latest.number},, ที่ช่องบริการ, ${latest.counter} ค่ะ`);
                         }, 500);
                     }
                 }
-
                 document.getElementById('tv-serving-list').innerHTML = serving.map((q, idx) => {
                     const isNew = idx === 0; 
                     return `
@@ -480,7 +460,6 @@
                         </div>
                     </div>`;
                 }).join('');
-
                 const waiting = queues.filter(q => q.status === 'waiting').sort((a,b) => a.timestamp - b.timestamp).slice(0, 8);
                 document.getElementById('tv-waiting-list').innerHTML = waiting.map(q => `
                     <li class="flex items-center gap-4 text-slate-300">
