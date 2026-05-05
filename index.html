@@ -9,6 +9,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;800&display=swap" rel="stylesheet">
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <!-- เพิ่มไลบรารี QRCode -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
     <style>
         body { font-family: 'Sarabun', sans-serif; }
@@ -155,7 +157,7 @@
                         <div id="kiosk-result" class="hidden w-full animate-fade-in flex flex-col items-center">
                             <p class="text-gray-500 text-sm">หมายเลขคิวของคุณ</p>
                             <div id="q-number" class="text-7xl font-black text-blue-600 my-2 tracking-tighter"></div>
-                            <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 shadow-inner mb-4">
+                            <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 shadow-inner mb-4 w-full flex justify-center">
                                 <div id="qr-code"></div>
                             </div>
                             <p class="text-lg font-bold text-red-500 animate-pulse">
@@ -171,12 +173,35 @@
                 const qRef = push(ref(db, 'queues'));
                 const qNum = "A" + Math.floor(100 + Math.random() * 900);
                 set(qRef, { number: qNum, status: 'waiting', timestamp: Date.now(), scanned: false });
+                
                 document.getElementById('btn-get-q').style.display = 'none';
                 document.getElementById('welcome-text').style.display = 'none';
                 document.getElementById('q-number').innerText = qNum;
                 document.getElementById('kiosk-result').classList.remove('hidden');
+                
                 const trackingUrl = `${window.location.origin}${window.location.pathname}?mode=user&id=${qRef.key}`;
-                document.getElementById('qr-code').innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(trackingUrl)}" alt="QR" class="mx-auto" />`;
+                
+                // เคลียร์พื้นที่แสดงผลเดิมก่อน
+                document.getElementById('qr-code').innerHTML = '';
+
+                // สร้าง QR Code ด้วยไลบรารี QRCode.js
+                new QRCode(document.getElementById('qr-code'), {
+                    text: trackingUrl,
+                    width: 150,
+                    height: 150,
+                    colorDark : "#000000",
+                    colorLight : "#ffffff",
+                    correctLevel : QRCode.CorrectLevel.H
+                });
+
+                // จัดให้อยู่กึ่งกลาง
+                setTimeout(() => {
+                    const qrImg = document.querySelector('#qr-code img');
+                    const qrCanvas = document.querySelector('#qr-code canvas');
+                    if(qrImg) qrImg.classList.add('mx-auto');
+                    if(qrCanvas) qrCanvas.classList.add('mx-auto');
+                }, 50);
+
                 resetTimer = setTimeout(() => resetKioskUI(), 30000);
                 currentUnsubscribe = onValue(qRef, (snapshot) => {
                     const data = snapshot.val();
@@ -280,7 +305,7 @@
                             navigator.serviceWorker.ready.then(function(registration) {
                                 registration.showNotification(`📢 ถึงคิวที่ ${myData.number} แล้ว!`, {
                                     body: `ขอเชิญรับบริการที่ช่องหมายเลข ${myData.counter} ครับ/ค่ะ`,
-                                    icon: 'https://cdn-icons-png.flaticon.com/512/2550/2550212.png', // เปลี่ยนเป็นโลโก้ระบบได้
+                                    icon: 'https://cdn-icons-png.flaticon.com/512/2550/2550212.png',
                                     vibrate: [500, 200, 500],
                                     requireInteraction: true // ให้แจ้งเตือนค้างไว้จนกว่าผู้ใช้จะกด
                                 });
@@ -311,7 +336,7 @@
         };
 
         // ==========================================
-        // 3. STAFF MODE (เพิ่มเป็น 10 Counter)
+        // 3. STAFF MODE (10 Counter)
         // ==========================================
         const renderStaff = (container) => {
             let currentCounter = 1;
