@@ -150,7 +150,6 @@
                 <div class="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-600 to-blue-800 text-white p-4">
                     <div class="bg-white text-gray-800 p-10 rounded-3xl shadow-2xl text-center max-w-md w-full min-h-[400px] flex flex-col justify-center relative">
                         <div id="welcome-text">
-                            <!-- เพิ่ม Logo ก่อนปุ่มกดรับคิว -->
                             <img src="logo.png" alt="Agency Logo" class="h-64 mx-auto mb-6 object-contain" onerror="this.style.display='none'">
                             <h1 class="text-3xl font-bold mb-2">ยินดีต้อนรับ</h1>
                             <p class="text-gray-500 mb-8">กรุณากดปุ่มเพื่อรับบัตรคิว</p>
@@ -167,7 +166,6 @@
                             <p class="text-gray-500 text-sm">หมายเลขคิวของคุณ</p>
                             <div id="q-number" class="text-7xl font-black text-blue-600 my-2 tracking-tighter"></div>
                             
-                            <!-- พื้นที่แสดง Logo และ QR Code (หน้าหลังกด) -->
                             <div class="bg-gray-50 p-6 rounded-xl border border-gray-200 shadow-inner mb-4 w-full flex flex-col items-center justify-center">
                                 <img src="logo.png" alt="Agency Logo" class="h-16 mb-4 object-contain" onerror="this.style.display='none'">
                                 <div id="qr-code"></div>
@@ -223,9 +221,6 @@
             
             document.getElementById('btn-cancel').onclick = resetKioskUI;
 
-            // ==========================================
-            // --- ระบบดักจับ Shortcut Keyboard ---
-            // ==========================================
             window.addEventListener('keydown', (e) => {
                 if (e.altKey && e.shiftKey && e.key.toLowerCase() === 'q') {
                     const btnGetQ = document.getElementById('btn-get-q');
@@ -432,30 +427,56 @@
         };
 
         // ==========================================
-        // 3. STAFF MODE 
+        // 3. STAFF MODE (ปุ่มกดเลือก Counter + คีย์ลัด)
         // ==========================================
         const renderStaff = (container) => {
             let currentCounter = 1;
             let currentQID = null;
+            
+            // ฟังก์ชันสำหรับสร้างและอัปเดตปุ่มเลือกช่องบริการ
+            const renderCounterButtons = () => {
+                const btnContainer = document.getElementById('counter-buttons');
+                if (!btnContainer) return;
+                
+                let html = '';
+                for (let i = 1; i <= 10; i++) {
+                    const isActive = i === currentCounter;
+                    const baseClasses = "flex-1 min-w-[60px] py-2 rounded-lg font-bold text-sm transition shadow-sm border flex flex-col items-center justify-center cursor-pointer";
+                    const activeClasses = isActive 
+                        ? "bg-blue-600 text-white border-blue-600 scale-105 shadow-md" 
+                        : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:border-slate-300";
+                    const shortcutKey = i === 10 ? '0' : i;
+                    
+                    html += `
+                        <button class="counter-btn ${baseClasses} ${activeClasses}" data-counter="${i}">
+                            <span class="text-base">ช่อง ${i}</span>
+                            <span class="text-[10px] font-mono mt-1 px-2 py-0.5 rounded bg-black/10">[${shortcutKey}]</span>
+                        </button>
+                    `;
+                }
+                btnContainer.innerHTML = html;
+
+                document.querySelectorAll('.counter-btn').forEach(btn => {
+                    btn.onclick = () => {
+                        currentCounter = parseInt(btn.dataset.counter);
+                        renderCounterButtons();
+                        get(ref(db, 'queues')).then(snap => updateUI(snap.val()));
+                    };
+                });
+            };
+
             container.innerHTML = `
                 <div class="min-h-screen bg-slate-100 p-4 md:p-8">
                     <div class="max-w-4xl mx-auto">
-                        <div class="bg-white p-4 rounded-xl shadow-sm mb-6 flex justify-between items-center flex-wrap gap-4">
-                            <h1 class="text-xl font-bold text-slate-700"><i class="fa-solid fa-user-tie"></i> Staff Console</h1>
-                            <div class="flex items-center gap-2 bg-slate-100 p-2 rounded-lg">
-                                <span class="text-sm text-slate-500">Counter:</span>
-                                <select id="counter-select" class="bg-transparent font-bold text-blue-600 outline-none">
-                                    <option value="1">No. 1</option>
-                                    <option value="2">No. 2</option>
-                                    <option value="3">No. 3</option>
-                                    <option value="4">No. 4</option>
-                                    <option value="5">No. 5</option>
-                                    <option value="6">No. 6</option>
-                                    <option value="7">No. 7</option>
-                                    <option value="8">No. 8</option>
-                                    <option value="9">No. 9</option>
-                                    <option value="10">No. 10</option>
-                                </select>
+                        <div class="bg-white p-4 rounded-xl shadow-sm mb-6">
+                            <div class="flex justify-between items-center mb-4 border-b pb-4">
+                                <h1 class="text-xl font-bold text-slate-700"><i class="fa-solid fa-user-tie"></i> Staff Console</h1>
+                            </div>
+                            <div>
+                                <p class="text-sm text-slate-500 mb-3 font-semibold"><i class="fa-solid fa-desktop"></i> เลือกช่องบริการ (หรือกดเลข 1-0 บนคีย์บอร์ด):</p>
+                                <div class="flex flex-wrap gap-2" id="counter-buttons">
+                                    <!-- ปุ่ม Counter จะถูกสร้างตรงนี้ -->
+                                </div>
                             </div>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -491,6 +512,10 @@
                     <div class="text-center mt-8"><button id="btn-reset" class="text-xs text-red-300 underline">Reset System</button></div>
                 </div>
             `;
+            
+            // วาดปุ่ม Counter ทันที
+            renderCounterButtons();
+
             const updateUI = (data) => {
                 const queues = Object.entries(data || {}).map(([k, v]) => ({ id: k, ...v }));
                 const myServing = queues.find(q => q.status === 'serving' && parseInt(q.counter) === currentCounter);
@@ -521,11 +546,6 @@
                 ).join('');
             };
             
-            document.getElementById('counter-select').onchange = (e) => {
-                currentCounter = parseInt(e.target.value);
-                get(ref(db, 'queues')).then(snap => updateUI(snap.val()));
-            };
-            
             document.getElementById('btn-call').onclick = async () => {
                 const snap = await get(ref(db, 'queues'));
                 const queues = Object.entries(snap.val() || {}).map(([k,v]) => ({id:k, ...v}));
@@ -542,7 +562,25 @@
             
             document.getElementById('btn-finish').onclick = () => { if (currentQID) update(ref(db, `queues/${currentQID}`), { status: 'done' }); };
             document.getElementById('btn-reset').onclick = () => { if(confirm('ลบข้อมูลทั้งหมด?')) set(ref(db, 'queues'), null); }
+            
             onValue(ref(db, 'queues'), (snap) => updateUI(snap.val()));
+
+            // --- ดักจับคีย์ลัดสำหรับเลือกช่องบริการ ---
+            window.addEventListener('keydown', (e) => {
+                // ข้ามถ้าพิมพ์อยู่ใน input อื่น (แม้หน้านี้จะไม่มี แต่ใส่ไว้กันเหนียวครับ)
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+                const keyMap = {
+                    '1': 1, '2': 2, '3': 3, '4': 4, '5': 5,
+                    '6': 6, '7': 7, '8': 8, '9': 9, '0': 10
+                };
+
+                if (keyMap[e.key]) {
+                    currentCounter = keyMap[e.key];
+                    renderCounterButtons(); 
+                    get(ref(db, 'queues')).then(snap => updateUI(snap.val()));
+                }
+            });
         };
 
         // ==========================================
@@ -614,7 +652,6 @@
                     }
                 }
                 
-                // --- กำหนดให้คิวรอเรียกแสดงสูงสุด 5 คิว ---
                 document.getElementById('tv-serving-list').innerHTML = serving.slice(0, 5).map((q, idx) => {
                     const isNew = idx === 0; 
                     return `
@@ -631,7 +668,6 @@
                     </div>`;
                 }).join('');
                 
-                // --- กำหนดให้คิวถัดไป (NEXT) แสดง 5 คิว ---
                 const waiting = queues.filter(q => q.status === 'waiting').sort((a,b) => a.timestamp - b.timestamp).slice(0, 5);
                 document.getElementById('tv-waiting-list').innerHTML = waiting.map(q => `
                     <li class="flex items-center gap-6 text-slate-200 bg-slate-700/50 p-4 rounded-xl border border-slate-700">
