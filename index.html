@@ -34,16 +34,25 @@
         from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
         // ==========================================
+        // --- การลงทะเบียน Service Worker ---
+        // ==========================================
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js')
+            .then(reg => console.log('Service Worker Registered'))
+            .catch(err => console.error('SW Error', err));
+        }
+
+        // ==========================================
         // --- CONFIG (ใส่ค่าของคุณที่นี่) ---
         // ==========================================
         const firebaseConfig = {
             apiKey: "AIzaSyDGYuI3yxJbUTc6T_0pm6WiEKZul11tXS0",
-  authDomain: "suchartwork-1487382986748.firebaseapp.com",
-  databaseURL: "https://suchartwork-1487382986748.firebaseio.com",
-  projectId: "suchartwork-1487382986748",
-  storageBucket: "suchartwork-1487382986748.firebasestorage.app",
-  messagingSenderId: "353884592527",
-  appId: "1:353884592527:web:a78fc0a891ba458aeb13fa"
+            authDomain: "suchartwork-1487382986748.firebaseapp.com",
+            databaseURL: "https://suchartwork-1487382986748.firebaseio.com",
+            projectId: "suchartwork-1487382986748",
+            storageBucket: "suchartwork-1487382986748.firebasestorage.app",
+            messagingSenderId: "353884592527",
+            appId: "1:353884592527:web:a78fc0a891ba458aeb13fa"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -224,8 +233,14 @@
                 soundEnabled = true;
                 playBeep('normal');
                 vibrateDevice([100]);
+                
                 btnSound.className = "mb-4 bg-green-100 text-green-600 px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 shadow-sm";
-                btnSound.innerHTML = `<i class="fa-solid fa-volume-high"></i> เปิดเสียงแล้ว`;
+                btnSound.innerHTML = `<i class="fa-solid fa-volume-high"></i> เปิดเสียงและการแจ้งเตือนแล้ว`;
+
+                // --- ขอสิทธิ์แสดง System Notification จากผู้ใช้ ---
+                if ("Notification" in window && Notification.permission !== "granted") {
+                    Notification.requestPermission();
+                }
             };
 
             document.getElementById('btn-save-ticket').onclick = () => {
@@ -259,6 +274,19 @@
                     if (soundEnabled && !notifiedServe) {
                         playBeep('alarm'); 
                         vibrateDevice([500, 200, 500, 200, 500]); 
+
+                        // --- สั่งยิงแจ้งเตือนเข้าระบบมือถือ (ทำงานแม้พับหน้าจอ) ---
+                        if ("Notification" in window && Notification.permission === "granted") {
+                            navigator.serviceWorker.ready.then(function(registration) {
+                                registration.showNotification(`📢 ถึงคิวที่ ${myData.number} แล้ว!`, {
+                                    body: `ขอเชิญรับบริการที่ช่องหมายเลข ${myData.counter} ครับ/ค่ะ`,
+                                    icon: 'https://cdn-icons-png.flaticon.com/512/2550/2550212.png', // เปลี่ยนเป็นโลโก้ระบบได้
+                                    vibrate: [500, 200, 500],
+                                    requireInteraction: true // ให้แจ้งเตือนค้างไว้จนกว่าผู้ใช้จะกด
+                                });
+                            }).catch(e => console.error("Notification fail", e));
+                        }
+
                         notifiedServe = true;
                     }
 
@@ -378,7 +406,7 @@
         };
 
         // ==========================================
-        // 4. TV DISPLAY MODE (เสียงผู้ชาย)
+        // 4. TV DISPLAY MODE
         // ==========================================
         const renderTV = (container) => {
             let lastAnnounce = "";
@@ -415,10 +443,7 @@
                 utterance.lang = 'th-TH';
                 utterance.rate = 0.9;
                 
-                // --- Logic การหาเสียงผู้ชาย (Male Voice) ---
                 const voices = window.speechSynthesis.getVoices();
-                
-                // ค้นหาเสียงที่มี keyword "Male", "Niwat" (Edge), "Pattara" (iOS)
                 const maleVoice = voices.find(v => 
                     v.lang.includes('th') && 
                     (v.name.includes('Male') || v.name.includes('Niwat') || v.name.includes('Pattara'))
@@ -427,7 +452,6 @@
                 if (maleVoice) {
                     utterance.voice = maleVoice;
                 } else {
-                    // ถ้าไม่เจอเสียงผู้ชาย ให้ใช้เสียงไทยอะไรก็ได้ที่มี (Fall back)
                     const anyThai = voices.find(v => v.lang.includes('th'));
                     if(anyThai) utterance.voice = anyThai;
                 }
