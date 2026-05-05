@@ -144,7 +144,6 @@
                 <div class="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-600 to-blue-800 text-white p-4">
                     <div class="bg-white text-gray-800 p-10 rounded-3xl shadow-2xl text-center max-w-md w-full min-h-[400px] flex flex-col justify-center relative">
                         <div id="welcome-text">
-                            <!-- เพิ่ม Logo ก่อนปุ่มกดรับคิว -->
                             <img src="logo.png" alt="Agency Logo" class="h-24 mx-auto mb-6 object-contain" onerror="this.style.display='none'">
                             <h1 class="text-3xl font-bold mb-2">ยินดีต้อนรับ</h1>
                             <p class="text-gray-500 mb-8">กรุณากดปุ่มเพื่อรับบัตรคิว</p>
@@ -156,7 +155,6 @@
                             <p class="text-gray-500 text-sm">หมายเลขคิวของคุณ</p>
                             <div id="q-number" class="text-7xl font-black text-blue-600 my-2 tracking-tighter"></div>
                             
-                            <!-- พื้นที่แสดง Logo และ QR Code (หน้าหลังกด) -->
                             <div class="bg-gray-50 p-6 rounded-xl border border-gray-200 shadow-inner mb-4 w-full flex flex-col items-center justify-center">
                                 <img src="logo.png" alt="Agency Logo" class="h-16 mb-4 object-contain" onerror="this.style.display='none'">
                                 <div id="qr-code"></div>
@@ -405,7 +403,7 @@
         };
 
         // ==========================================
-        // 3. STAFF MODE (เพิ่มปุ่มเรียกซ้ำ)
+        // 3. STAFF MODE 
         // ==========================================
         const renderStaff = (container) => {
             let currentCounter = 1;
@@ -519,7 +517,7 @@
         };
 
         // ==========================================
-        // 4. TV DISPLAY MODE
+        // 4. TV DISPLAY MODE (อัปเดตขนาดตัวอักษร)
         // ==========================================
         const renderTV = (container) => {
             let lastAnnounce = "";
@@ -533,13 +531,12 @@
                     </div>
                     <div class="w-2/3 p-8 flex flex-col border-r border-slate-800">
                         <h1 class="text-4xl font-bold text-slate-400 mb-8 tracking-wider">กำลังเรียก <span class="text-emerald-500">NOW SERVING</span></h1>
-                        <div id="tv-serving-list" class="grid grid-cols-1 gap-6"></div>
+                        <div id="tv-serving-list" class="grid grid-cols-1 gap-8"></div>
                     </div>
                     <div class="w-1/3 bg-slate-800 p-8 flex flex-col shadow-2xl">
                         <h2 class="text-2xl font-bold text-slate-400 mb-6 pb-4 border-b border-slate-700">คิวถัดไป / NEXT</h2>
-                        <ul id="tv-waiting-list" class="space-y-4 text-2xl mb-6 flex-1 overflow-hidden"></ul>
+                        <ul id="tv-waiting-list" class="space-y-4 mb-6 flex-1 overflow-hidden"></ul>
                         
-                        <!-- พื้นที่แสดงวิดีโอ 16:9 -->
                         <div class="mt-auto rounded-xl overflow-hidden shadow-lg border border-slate-700 bg-black w-full aspect-video flex-shrink-0">
                             <video src="video.mp4" autoplay loop muted playsinline class="w-full h-full object-cover"></video>
                         </div>
@@ -587,26 +584,30 @@
                         }, 500);
                     }
                 }
+                
+                // อัปเดตขนาดตัวหนังสือช่องเรียกคิวให้ใหญ่สะใจ (text-[10rem] และ text-[8rem])
                 document.getElementById('tv-serving-list').innerHTML = serving.map((q, idx) => {
                     const isNew = idx === 0; 
                     return `
                     <div class="${isNew ? 'bg-white text-slate-900 border-l-8 border-emerald-500 animate-pulse-green' : 'bg-slate-700 text-slate-400 border-l-8 border-slate-500'} 
-                        p-6 rounded-xl shadow-lg flex justify-between items-center transition-all">
+                        p-8 rounded-2xl shadow-lg flex justify-between items-center transition-all">
                         <div>
-                            <span class="text-xl block opacity-70">หมายเลขคิว</span>
-                            <span class="text-8xl font-black tracking-tighter">${q.number}</span>
+                            <span class="text-2xl block opacity-70 mb-2 font-semibold">หมายเลขคิว / QUEUE</span>
+                            <span class="text-[8rem] leading-none font-black tracking-tighter">${q.number}</span>
                         </div>
                         <div class="text-right">
-                            <span class="text-2xl block opacity-70">ช่องบริการ</span>
-                            <span class="text-6xl font-bold ${isNew ? 'text-blue-600' : 'text-slate-200'}">${q.counter}</span>
+                            <span class="text-2xl block opacity-70 mb-2 font-semibold">ช่องบริการ / COUNTER</span>
+                            <span class="text-[10rem] leading-none font-black ${isNew ? 'text-blue-600' : 'text-slate-200'}">${q.counter}</span>
                         </div>
                     </div>`;
                 }).join('');
-                const waiting = queues.filter(q => q.status === 'waiting').sort((a,b) => a.timestamp - b.timestamp).slice(0, 8);
+                
+                // โชว์คิวรอ 6 คิว และขยายตัวเลขให้ใหญ่ขึ้นเป็น text-6xl พร้อมตีกรอบให้ดูชัดเจน
+                const waiting = queues.filter(q => q.status === 'waiting').sort((a,b) => a.timestamp - b.timestamp).slice(0, 6);
                 document.getElementById('tv-waiting-list').innerHTML = waiting.map(q => `
-                    <li class="flex items-center gap-4 text-slate-300">
-                        <i class="fa-solid fa-circle text-xs text-yellow-500"></i>
-                        <span class="font-mono font-bold text-4xl">${q.number}</span>
+                    <li class="flex items-center gap-6 text-slate-200 bg-slate-700/50 p-4 rounded-xl border border-slate-700">
+                        <i class="fa-solid fa-circle text-sm text-yellow-500 animate-pulse"></i>
+                        <span class="font-mono font-black text-6xl tracking-wider">${q.number}</span>
                     </li>
                 `).join('');
             });
