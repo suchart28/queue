@@ -179,7 +179,9 @@
                 document.getElementById('q-number').innerText = qNum;
                 document.getElementById('kiosk-result').classList.remove('hidden');
                 
-                const trackingUrl = `${window.location.origin}${window.location.pathname}?mode=user&id=${qRef.key}`;
+                // แก้ไขการสร้าง URL สำหรับ GitHub Pages
+                const baseUrl = window.location.href.split('?')[0]; 
+                const trackingUrl = `${baseUrl}?mode=user&id=${qRef.key}`;
                 
                 // เคลียร์พื้นที่แสดงผลเดิมก่อน
                 document.getElementById('qr-code').innerHTML = '';
