@@ -153,9 +153,13 @@
                         <div id="kiosk-result" class="hidden w-full animate-fade-in flex flex-col items-center">
                             <p class="text-gray-500 text-sm">หมายเลขคิวของคุณ</p>
                             <div id="q-number" class="text-7xl font-black text-blue-600 my-2 tracking-tighter"></div>
-                            <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 shadow-inner mb-4 w-full flex justify-center">
+                            
+                            <!-- พื้นที่แสดง Logo และ QR Code -->
+                            <div class="bg-gray-50 p-6 rounded-xl border border-gray-200 shadow-inner mb-4 w-full flex flex-col items-center justify-center">
+                                <img src="logo.png" alt="Agency Logo" class="h-16 mb-4 object-contain" onerror="this.style.display='none'">
                                 <div id="qr-code"></div>
                             </div>
+                            
                             <p class="text-lg font-bold text-red-500 animate-pulse">
                                 <i class="fa-solid fa-mobile-screen-button"></i> กรุณาสแกนเพื่อติดตามคิว
                             </p>
@@ -213,7 +217,7 @@
             let notifiedNear = false;
             let notifiedServe = false;
             let lastQAhead = -1;
-            let lastUserCallTime = 0; // ตัวแปรเช็กว่าโดนเรียกซ้ำหรือไม่
+            let lastUserCallTime = 0; 
 
             if (!ticketId) { container.innerHTML = `<div class="p-10 text-center">ไม่พบข้อมูลคิว</div>`; return; }
             update(ref(db, 'queues/' + ticketId), { scanned: true });
@@ -343,7 +347,6 @@
 
                     updatePiPWindow(myData.number, 0, 'serving');
 
-                    // ตรวจสอบว่าเป็นการเรียกครั้งแรก หรือถูกเรียกซ้ำ (callTime เปลี่ยน)
                     if (soundEnabled && (!notifiedServe || myData.callTime !== lastUserCallTime)) {
                         playBeep('alarm'); 
                         vibrateDevice([500, 200, 500, 200, 500]); 
@@ -360,7 +363,7 @@
                         }
 
                         notifiedServe = true;
-                        lastUserCallTime = myData.callTime; // อัปเดตเวลาล่าสุดที่ถูกเรียก
+                        lastUserCallTime = myData.callTime; 
                     }
 
                 } else if (myData.status === 'waiting') {
@@ -431,7 +434,6 @@
                                 <h2 class="text-gray-400 text-sm uppercase tracking-wide">กำลังให้บริการ</h2>
                                 <div id="staff-current-q" class="text-6xl font-black text-slate-800 my-8 min-h-[80px]">-</div>
                                 
-                                <!-- เพิ่มปุ่ม เรียกซ้ำ ตรงนี้ -->
                                 <div class="flex gap-4">
                                     <button id="btn-recall" disabled class="flex-1 bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-300 text-white font-bold py-3 rounded-lg transition shadow-sm active:scale-95">
                                         <i class="fa-solid fa-bell"></i> เรียกซ้ำ
@@ -468,14 +470,14 @@
                     currentQID = myServing.id;
                     document.getElementById('staff-current-q').innerText = myServing.number;
                     document.getElementById('btn-finish').disabled = false;
-                    document.getElementById('btn-recall').disabled = false; // เปิดใช้ปุ่มเรียกซ้ำ
+                    document.getElementById('btn-recall').disabled = false; 
                     document.getElementById('btn-call').disabled = true;
                     document.getElementById('btn-call').classList.add('opacity-50');
                 } else {
                     currentQID = null;
                     document.getElementById('staff-current-q').innerText = "-";
                     document.getElementById('btn-finish').disabled = true;
-                    document.getElementById('btn-recall').disabled = true; // ปิดใช้ปุ่มเรียกซ้ำ
+                    document.getElementById('btn-recall').disabled = true; 
                     document.getElementById('btn-call').disabled = false;
                     document.getElementById('btn-call').classList.remove('opacity-50');
                 }
@@ -503,10 +505,8 @@
                 else alert("ไม่มีคิวรอ");
             };
             
-            // ฟังก์ชันเมื่อกดปุ่มเรียกซ้ำ
             document.getElementById('btn-recall').onclick = () => { 
                 if (currentQID) {
-                    // อัปเดต callTime ใหม่ จะทำให้ทีวีและมือถือแจ้งเตือนซ้ำ
                     update(ref(db, `queues/${currentQID}`), { callTime: Date.now() }); 
                 } 
             };
