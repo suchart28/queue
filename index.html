@@ -9,7 +9,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;800&display=swap" rel="stylesheet">
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
-    <!-- เพิ่มไลบรารี QRCode -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
     <style>
@@ -60,7 +59,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // Pre-load voices
         let allVoices = [];
         window.speechSynthesis.onvoiceschanged = () => {
             allVoices = window.speechSynthesis.getVoices();
@@ -81,7 +79,6 @@
                 const now = ctx.currentTime;
 
                 if (type === 'alarm') {
-                    // --- เสียงเตือนเรียกคิว User (ALARM: ดังและยาว) ---
                     [0, 0.4, 0.8].forEach(delay => {
                         const osc = ctx.createOscillator();
                         const gain = ctx.createGain();
@@ -99,7 +96,6 @@
                         osc.stop(now + delay + 0.3);
                     });
                 } else {
-                    // --- เสียงติ๊งหน่อง TV (Normal) ---
                     const osc = ctx.createOscillator();
                     const gain = ctx.createGain();
                     osc.connect(gain);
@@ -179,14 +175,10 @@
                 document.getElementById('q-number').innerText = qNum;
                 document.getElementById('kiosk-result').classList.remove('hidden');
                 
-                // การสร้าง URL สำหรับ GitHub Pages
                 const baseUrl = window.location.href.split('?')[0]; 
                 const trackingUrl = `${baseUrl}?mode=user&id=${qRef.key}`;
                 
-                // เคลียร์พื้นที่แสดงผลเดิมก่อน
                 document.getElementById('qr-code').innerHTML = '';
-
-                // สร้าง QR Code ด้วยไลบรารี QRCode.js
                 new QRCode(document.getElementById('qr-code'), {
                     text: trackingUrl,
                     width: 150,
@@ -220,7 +212,8 @@
             let soundEnabled = false;
             let notifiedNear = false;
             let notifiedServe = false;
-            let lastQAhead = -1; // สำหรับเช็กอัปเดต Notification แบบเงียบ
+            let lastQAhead = -1;
+            let lastUserCallTime = 0; // ตัวแปรเช็กว่าโดนเรียกซ้ำหรือไม่
 
             if (!ticketId) { container.innerHTML = `<div class="p-10 text-center">ไม่พบข้อมูลคิว</div>`; return; }
             update(ref(db, 'queues/' + ticketId), { scanned: true });
@@ -263,7 +256,6 @@
 
             const btnSound = document.getElementById('btn-enable-sound');
             
-            // --- ระบบ Picture-in-Picture (หน้าต่างลอย) ---
             const btnPip = document.getElementById('btn-pip');
             const canvas = document.createElement('canvas');
             canvas.width = 400; canvas.height = 400;
@@ -278,7 +270,7 @@
 
             btnPip.onclick = async () => {
                 try {
-                    const stream = canvas.captureStream(1); // 1 เฟรมต่อวินาที
+                    const stream = canvas.captureStream(1);
                     video.srcObject = stream;
                     await video.play();
                     await video.requestPictureInPicture();
@@ -351,7 +343,8 @@
 
                     updatePiPWindow(myData.number, 0, 'serving');
 
-                    if (soundEnabled && !notifiedServe) {
+                    // ตรวจสอบว่าเป็นการเรียกครั้งแรก หรือถูกเรียกซ้ำ (callTime เปลี่ยน)
+                    if (soundEnabled && (!notifiedServe || myData.callTime !== lastUserCallTime)) {
                         playBeep('alarm'); 
                         vibrateDevice([500, 200, 500, 200, 500]); 
 
@@ -367,6 +360,7 @@
                         }
 
                         notifiedServe = true;
+                        lastUserCallTime = myData.callTime; // อัปเดตเวลาล่าสุดที่ถูกเรียก
                     }
 
                 } else if (myData.status === 'waiting') {
@@ -388,15 +382,14 @@
                         notifiedNear = true;
                     }
 
-                    // --- แจ้งเตือนอัปเดตคิวเมื่อผู้ใช้พับหน้าจอ (Silent Update) ---
                     if (qAhead !== lastQAhead && lastQAhead !== -1 && document.visibilityState === 'hidden') {
                         if ("Notification" in window && Notification.permission === "granted") {
                             navigator.serviceWorker.ready.then(function(registration) {
                                 registration.showNotification(`คิวหมายเลข ${myData.number}`, {
                                     body: `ตอนนี้เหลืออีก ${qAhead} คิวจะถึงคิวของคุณ`,
                                     icon: 'https://cdn-icons-png.flaticon.com/512/2550/2550212.png',
-                                    tag: 'queue-update', // ใช้ Tag เดิมเพื่ออัปเดตการแจ้งเตือนเดิม ไม่ให้เด้งซ้ำซ้อน
-                                    silent: true // ไม่ต้องมีเสียงเตือนตอนอัปเดตลำดับคิว
+                                    tag: 'queue-update',
+                                    silent: true 
                                 });
                             });
                         }
@@ -407,7 +400,7 @@
         };
 
         // ==========================================
-        // 3. STAFF MODE (10 Counter)
+        // 3. STAFF MODE (เพิ่มปุ่มเรียกซ้ำ)
         // ==========================================
         const renderStaff = (container) => {
             let currentCounter = 1;
@@ -437,9 +430,16 @@
                             <div class="bg-white p-6 rounded-xl shadow-md text-center border-t-4 border-blue-500">
                                 <h2 class="text-gray-400 text-sm uppercase tracking-wide">กำลังให้บริการ</h2>
                                 <div id="staff-current-q" class="text-6xl font-black text-slate-800 my-8 min-h-[80px]">-</div>
-                                <button id="btn-finish" disabled class="w-full bg-red-500 hover:bg-red-600 disabled:bg-gray-300 text-white font-bold py-3 rounded-lg transition">
-                                    <i class="fa-solid fa-check"></i> จบงาน (Finish)
-                                </button>
+                                
+                                <!-- เพิ่มปุ่ม เรียกซ้ำ ตรงนี้ -->
+                                <div class="flex gap-4">
+                                    <button id="btn-recall" disabled class="flex-1 bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-300 text-white font-bold py-3 rounded-lg transition shadow-sm active:scale-95">
+                                        <i class="fa-solid fa-bell"></i> เรียกซ้ำ
+                                    </button>
+                                    <button id="btn-finish" disabled class="flex-1 bg-red-500 hover:bg-red-600 disabled:bg-gray-300 text-white font-bold py-3 rounded-lg transition shadow-sm active:scale-95">
+                                        <i class="fa-solid fa-check"></i> จบงาน
+                                    </button>
+                                </div>
                             </div>
                             <div class="bg-white p-6 rounded-xl shadow-md border-t-4 border-green-500 flex flex-col">
                                 <div class="flex justify-between items-end mb-4">
@@ -463,19 +463,23 @@
             const updateUI = (data) => {
                 const queues = Object.entries(data || {}).map(([k, v]) => ({ id: k, ...v }));
                 const myServing = queues.find(q => q.status === 'serving' && parseInt(q.counter) === currentCounter);
+                
                 if (myServing) {
                     currentQID = myServing.id;
                     document.getElementById('staff-current-q').innerText = myServing.number;
                     document.getElementById('btn-finish').disabled = false;
+                    document.getElementById('btn-recall').disabled = false; // เปิดใช้ปุ่มเรียกซ้ำ
                     document.getElementById('btn-call').disabled = true;
                     document.getElementById('btn-call').classList.add('opacity-50');
                 } else {
                     currentQID = null;
                     document.getElementById('staff-current-q').innerText = "-";
                     document.getElementById('btn-finish').disabled = true;
+                    document.getElementById('btn-recall').disabled = true; // ปิดใช้ปุ่มเรียกซ้ำ
                     document.getElementById('btn-call').disabled = false;
                     document.getElementById('btn-call').classList.remove('opacity-50');
                 }
+                
                 const waiting = queues.filter(q => q.status === 'waiting').sort((a,b) => a.timestamp - b.timestamp);
                 document.getElementById('staff-wait-count').innerText = waiting.length;
                 document.getElementById('staff-wait-list').innerHTML = waiting.map(q => 
@@ -485,10 +489,12 @@
                      </li>`
                 ).join('');
             };
+            
             document.getElementById('counter-select').onchange = (e) => {
                 currentCounter = parseInt(e.target.value);
                 get(ref(db, 'queues')).then(snap => updateUI(snap.val()));
             };
+            
             document.getElementById('btn-call').onclick = async () => {
                 const snap = await get(ref(db, 'queues'));
                 const queues = Object.entries(snap.val() || {}).map(([k,v]) => ({id:k, ...v}));
@@ -496,6 +502,15 @@
                 if (nextQ) update(ref(db, `queues/${nextQ.id}`), { status: 'serving', counter: currentCounter, callTime: Date.now() });
                 else alert("ไม่มีคิวรอ");
             };
+            
+            // ฟังก์ชันเมื่อกดปุ่มเรียกซ้ำ
+            document.getElementById('btn-recall').onclick = () => { 
+                if (currentQID) {
+                    // อัปเดต callTime ใหม่ จะทำให้ทีวีและมือถือแจ้งเตือนซ้ำ
+                    update(ref(db, `queues/${currentQID}`), { callTime: Date.now() }); 
+                } 
+            };
+            
             document.getElementById('btn-finish').onclick = () => { if (currentQID) update(ref(db, `queues/${currentQID}`), { status: 'done' }); };
             document.getElementById('btn-reset').onclick = () => { if(confirm('ลบข้อมูลทั้งหมด?')) set(ref(db, 'queues'), null); }
             onValue(ref(db, 'queues'), (snap) => updateUI(snap.val()));
