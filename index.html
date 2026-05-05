@@ -144,6 +144,8 @@
                 <div class="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-600 to-blue-800 text-white p-4">
                     <div class="bg-white text-gray-800 p-10 rounded-3xl shadow-2xl text-center max-w-md w-full min-h-[400px] flex flex-col justify-center relative">
                         <div id="welcome-text">
+                            <!-- เพิ่ม Logo ก่อนปุ่มกดรับคิว -->
+                            <img src="logo.png" alt="Agency Logo" class="h-24 mx-auto mb-6 object-contain" onerror="this.style.display='none'">
                             <h1 class="text-3xl font-bold mb-2">ยินดีต้อนรับ</h1>
                             <p class="text-gray-500 mb-8">กรุณากดปุ่มเพื่อรับบัตรคิว</p>
                         </div>
@@ -154,7 +156,7 @@
                             <p class="text-gray-500 text-sm">หมายเลขคิวของคุณ</p>
                             <div id="q-number" class="text-7xl font-black text-blue-600 my-2 tracking-tighter"></div>
                             
-                            <!-- พื้นที่แสดง Logo และ QR Code -->
+                            <!-- พื้นที่แสดง Logo และ QR Code (หน้าหลังกด) -->
                             <div class="bg-gray-50 p-6 rounded-xl border border-gray-200 shadow-inner mb-4 w-full flex flex-col items-center justify-center">
                                 <img src="logo.png" alt="Agency Logo" class="h-16 mb-4 object-contain" onerror="this.style.display='none'">
                                 <div id="qr-code"></div>
