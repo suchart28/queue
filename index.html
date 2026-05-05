@@ -151,7 +151,7 @@
                     <div class="bg-white text-gray-800 p-10 rounded-3xl shadow-2xl text-center max-w-md w-full min-h-[400px] flex flex-col justify-center relative">
                         <div id="welcome-text">
                             <!-- เพิ่ม Logo ก่อนปุ่มกดรับคิว -->
-                            <img src="logo.png" alt="Agency Logo" class="h-60 mx-auto mb-6 object-contain" onerror="this.style.display='none'">
+                            <img src="logo.png" alt="Agency Logo" class="h-24 mx-auto mb-6 object-contain" onerror="this.style.display='none'">
                             <h1 class="text-3xl font-bold mb-2">ยินดีต้อนรับ</h1>
                             <p class="text-gray-500 mb-8">กรุณากดปุ่มเพื่อรับบัตรคิว</p>
                         </div>
@@ -159,7 +159,9 @@
                         <button id="btn-get-q" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-2xl font-bold py-6 rounded-2xl shadow-lg transform transition active:scale-95 flex items-center justify-center gap-3">
                             <i class="fa-solid fa-ticket"></i> กดรับคิว
                         </button>
-               
+                        <p id="shortcut-hint" class="text-sm text-gray-400 mt-4 font-mono select-none">
+                            <i class="fa-regular fa-keyboard"></i> Shortcut: Alt + Shift + Q
+                        </p>
                         
                         <div id="kiosk-result" class="hidden w-full animate-fade-in flex flex-col items-center">
                             <p class="text-gray-500 text-sm">หมายเลขคิวของคุณ</p>
