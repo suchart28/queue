@@ -1,4 +1,4 @@
-// ไฟล์ sw.js
+// sw.js
 self.addEventListener('notificationclick', function(event) {
     event.notification.close();
     // ถ้าผู้ใช้กดที่แจ้งเตือน ให้พยายามดึงหน้าต่างเบราว์เซอร์เดิมกลับมา
