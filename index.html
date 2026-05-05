@@ -179,7 +179,7 @@
                 document.getElementById('q-number').innerText = qNum;
                 document.getElementById('kiosk-result').classList.remove('hidden');
                 
-                // แก้ไขการสร้าง URL สำหรับ GitHub Pages
+                // การสร้าง URL สำหรับ GitHub Pages
                 const baseUrl = window.location.href.split('?')[0]; 
                 const trackingUrl = `${baseUrl}?mode=user&id=${qRef.key}`;
                 
@@ -196,7 +196,6 @@
                     correctLevel : QRCode.CorrectLevel.H
                 });
 
-                // จัดให้อยู่กึ่งกลาง
                 setTimeout(() => {
                     const qrImg = document.querySelector('#qr-code img');
                     const qrCanvas = document.querySelector('#qr-code canvas');
@@ -221,6 +220,7 @@
             let soundEnabled = false;
             let notifiedNear = false;
             let notifiedServe = false;
+            let lastQAhead = -1; // สำหรับเช็กอัปเดต Notification แบบเงียบ
 
             if (!ticketId) { container.innerHTML = `<div class="p-10 text-center">ไม่พบข้อมูลคิว</div>`; return; }
             update(ref(db, 'queues/' + ticketId), { scanned: true });
@@ -228,7 +228,7 @@
             container.innerHTML = `
                 <div class="min-h-screen bg-gray-50 flex flex-col items-center p-6 transition-colors duration-500" id="user-bg">
                     <button id="btn-enable-sound" class="mb-4 bg-gray-200 text-gray-600 px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 shadow-sm animate-bounce">
-                        <i class="fa-solid fa-volume-xmark"></i> แตะเพื่อเปิดเสียงแจ้งเตือน
+                        <i class="fa-solid fa-volume-xmark"></i> แตะเพื่อเปิดการแจ้งเตือน
                     </button>
                     <div id="capture-area" class="bg-white w-full max-w-sm rounded-3xl shadow-xl p-8 text-center relative overflow-hidden border border-gray-100">
                         <div class="border-b border-gray-100 pb-4 mb-4">
@@ -246,9 +246,15 @@
                         </div>
                         <div class="text-[10px] text-gray-300 mt-2">ID: ${ticketId.substring(1,8)}</div>
                     </div>
-                    <button id="btn-save-ticket" class="mt-6 bg-emerald-500 hover:bg-emerald-600 text-white py-3 px-8 rounded-full shadow-lg font-bold flex items-center gap-2 transform active:scale-95 transition">
+                    
+                    <button id="btn-pip" class="mt-6 bg-purple-500 hover:bg-purple-600 text-white py-3 px-8 rounded-full shadow-lg font-bold flex items-center gap-2 transform active:scale-95 transition hidden w-full max-w-sm justify-center">
+                        <i class="fa-solid fa-clone"></i> เปิดคิวเป็นหน้าต่างลอย (PiP)
+                    </button>
+                    
+                    <button id="btn-save-ticket" class="mt-3 bg-emerald-500 hover:bg-emerald-600 text-white py-3 px-8 rounded-full shadow-lg font-bold flex items-center gap-2 transform active:scale-95 transition w-full max-w-sm justify-center">
                         <i class="fa-solid fa-download"></i> บันทึกรูปบัตรคิว
                     </button>
+                    
                     <div id="q-info" class="mt-4 text-gray-400 text-xs text-center">
                         <i class="fa-solid fa-bell"></i> เปิดหน้านี้ค้างไว้เพื่อรับการแจ้งเตือน
                     </div>
@@ -256,15 +262,60 @@
             `;
 
             const btnSound = document.getElementById('btn-enable-sound');
+            
+            // --- ระบบ Picture-in-Picture (หน้าต่างลอย) ---
+            const btnPip = document.getElementById('btn-pip');
+            const canvas = document.createElement('canvas');
+            canvas.width = 400; canvas.height = 400;
+            const ctx = canvas.getContext('2d');
+            const video = document.createElement('video');
+            video.muted = true;
+            video.playsInline = true;
+
+            if (document.pictureInPictureEnabled) {
+                btnPip.classList.remove('hidden');
+            }
+
+            btnPip.onclick = async () => {
+                try {
+                    const stream = canvas.captureStream(1); // 1 เฟรมต่อวินาที
+                    video.srcObject = stream;
+                    await video.play();
+                    await video.requestPictureInPicture();
+                } catch (e) {
+                    alert("อุปกรณ์หรือเบราว์เซอร์ของคุณไม่รองรับฟีเจอร์หน้าต่างลอย");
+                    console.error(e);
+                }
+            };
+
+            const updatePiPWindow = (qNum, qAhead, status) => {
+                ctx.fillStyle = status === 'serving' ? '#10b981' : '#1e293b'; 
+                ctx.fillRect(0, 0, 400, 400);
+
+                ctx.fillStyle = 'white';
+                ctx.textAlign = 'center';
+                
+                ctx.font = '40px Sarabun';
+                ctx.fillText(status === 'serving' ? 'ถึงคิวของคุณแล้ว!' : 'คิวของคุณ', 200, 100);
+                
+                ctx.font = 'bold 120px Sarabun';
+                ctx.fillText(qNum || '-', 200, 240);
+                
+                if (status === 'waiting') {
+                    ctx.font = '30px Sarabun';
+                    ctx.fillStyle = '#fbbf24';
+                    ctx.fillText(`รออีก ${qAhead} คิว`, 200, 320);
+                }
+            };
+
             btnSound.onclick = () => {
                 soundEnabled = true;
                 playBeep('normal');
                 vibrateDevice([100]);
                 
                 btnSound.className = "mb-4 bg-green-100 text-green-600 px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 shadow-sm";
-                btnSound.innerHTML = `<i class="fa-solid fa-volume-high"></i> เปิดเสียงและการแจ้งเตือนแล้ว`;
+                btnSound.innerHTML = `<i class="fa-solid fa-volume-high"></i> เปิดการแจ้งเตือนแล้ว`;
 
-                // --- ขอสิทธิ์แสดง System Notification จากผู้ใช้ ---
                 if ("Notification" in window && Notification.permission !== "granted") {
                     Notification.requestPermission();
                 }
@@ -298,18 +349,19 @@
                     statusTxt.innerHTML = `เชิญช่อง <span class="text-3xl block mt-2 text-green-600">${myData.counter}</span>`;
                     document.getElementById('eta-box').style.display = 'none';
 
+                    updatePiPWindow(myData.number, 0, 'serving');
+
                     if (soundEnabled && !notifiedServe) {
                         playBeep('alarm'); 
                         vibrateDevice([500, 200, 500, 200, 500]); 
 
-                        // --- สั่งยิงแจ้งเตือนเข้าระบบมือถือ (ทำงานแม้พับหน้าจอ) ---
                         if ("Notification" in window && Notification.permission === "granted") {
                             navigator.serviceWorker.ready.then(function(registration) {
                                 registration.showNotification(`📢 ถึงคิวที่ ${myData.number} แล้ว!`, {
                                     body: `ขอเชิญรับบริการที่ช่องหมายเลข ${myData.counter} ครับ/ค่ะ`,
                                     icon: 'https://cdn-icons-png.flaticon.com/512/2550/2550212.png',
                                     vibrate: [500, 200, 500],
-                                    requireInteraction: true // ให้แจ้งเตือนค้างไว้จนกว่าผู้ใช้จะกด
+                                    requireInteraction: true 
                                 });
                             }).catch(e => console.error("Notification fail", e));
                         }
@@ -328,11 +380,28 @@
                     document.getElementById('q-ahead').innerText = qAhead;
                     document.getElementById('eta-time').innerText = Math.ceil((qAhead * AVG_SERVICE_TIME) / 3) || 1;
 
+                    updatePiPWindow(myData.number, qAhead, 'waiting');
+
                     if (qAhead <= 2 && qAhead > 0 && soundEnabled && !notifiedNear) {
                         playBeep('normal'); 
                         vibrateDevice([200, 100, 200]);
                         notifiedNear = true;
                     }
+
+                    // --- แจ้งเตือนอัปเดตคิวเมื่อผู้ใช้พับหน้าจอ (Silent Update) ---
+                    if (qAhead !== lastQAhead && lastQAhead !== -1 && document.visibilityState === 'hidden') {
+                        if ("Notification" in window && Notification.permission === "granted") {
+                            navigator.serviceWorker.ready.then(function(registration) {
+                                registration.showNotification(`คิวหมายเลข ${myData.number}`, {
+                                    body: `ตอนนี้เหลืออีก ${qAhead} คิวจะถึงคิวของคุณ`,
+                                    icon: 'https://cdn-icons-png.flaticon.com/512/2550/2550212.png',
+                                    tag: 'queue-update', // ใช้ Tag เดิมเพื่ออัปเดตการแจ้งเตือนเดิม ไม่ให้เด้งซ้ำซ้อน
+                                    silent: true // ไม่ต้องมีเสียงเตือนตอนอัปเดตลำดับคิว
+                                });
+                            });
+                        }
+                    }
+                    lastQAhead = qAhead;
                 }
             });
         };
