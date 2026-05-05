@@ -151,7 +151,7 @@
                     <div class="bg-white text-gray-800 p-10 rounded-3xl shadow-2xl text-center max-w-md w-full min-h-[400px] flex flex-col justify-center relative">
                         <div id="welcome-text">
                             <!-- เพิ่ม Logo ก่อนปุ่มกดรับคิว -->
-                            <img src="logo.png" alt="Agency Logo" class="h-24 mx-auto mb-6 object-contain" onerror="this.style.display='none'">
+                            <img src="logo.png" alt="Agency Logo" class="h-64 mx-auto mb-6 object-contain" onerror="this.style.display='none'">
                             <h1 class="text-3xl font-bold mb-2">ยินดีต้อนรับ</h1>
                             <p class="text-gray-500 mb-8">กรุณากดปุ่มเพื่อรับบัตรคิว</p>
                         </div>
@@ -227,13 +227,11 @@
             // --- ระบบดักจับ Shortcut Keyboard ---
             // ==========================================
             window.addEventListener('keydown', (e) => {
-                // ตรวจสอบการกด Alt + Shift + Q (ใช้ toLowerCase() เพื่อรองรับทั้งกรณีเปิด/ปิด CapsLock)
                 if (e.altKey && e.shiftKey && e.key.toLowerCase() === 'q') {
                     const btnGetQ = document.getElementById('btn-get-q');
-                    // จะทำงานก็ต่อเมื่อปุ่ม "กดรับคิว" แสดงอยู่บนจอเท่านั้น (ป้องกันคิวเบิ้ลตอนแสดง QR)
                     if (btnGetQ && btnGetQ.style.display !== 'none') {
-                        e.preventDefault(); // ป้องกัน Action อัตโนมัติของเบราว์เซอร์
-                        btnGetQ.click();    // สั่งให้จำลองการคลิกปุ่ม
+                        e.preventDefault(); 
+                        btnGetQ.click();    
                     }
                 }
             });
@@ -561,8 +559,8 @@
                         </div>
                     </div>
                     <div class="w-2/3 p-8 flex flex-col border-r border-slate-800">
-                        <h1 class="text-4xl font-bold text-slate-400 mb-8 tracking-wider">กำลังเรียก <span class="text-emerald-500">NOW SERVING</span></h1>
-                        <div id="tv-serving-list" class="grid grid-cols-1 gap-8"></div>
+                        <h1 class="text-4xl font-bold text-slate-400 mb-6 tracking-wider">กำลังเรียก <span class="text-emerald-500">NOW SERVING</span></h1>
+                        <div id="tv-serving-list" class="grid grid-cols-1 gap-4 h-full overflow-hidden pb-4"></div>
                     </div>
                     <div class="w-1/3 bg-slate-800 p-8 flex flex-col shadow-2xl">
                         <h2 class="text-2xl font-bold text-slate-400 mb-6 pb-4 border-b border-slate-700">คิวถัดไป / NEXT</h2>
@@ -616,23 +614,25 @@
                     }
                 }
                 
-                document.getElementById('tv-serving-list').innerHTML = serving.map((q, idx) => {
+                // --- กำหนดให้คิวรอเรียกแสดงสูงสุด 5 คิว ---
+                document.getElementById('tv-serving-list').innerHTML = serving.slice(0, 5).map((q, idx) => {
                     const isNew = idx === 0; 
                     return `
                     <div class="${isNew ? 'bg-white text-slate-900 border-l-8 border-emerald-500 animate-pulse-green' : 'bg-slate-700 text-slate-400 border-l-8 border-slate-500'} 
-                        p-8 rounded-2xl shadow-lg flex justify-between items-center transition-all">
+                        p-4 sm:p-6 rounded-2xl shadow-lg flex justify-between items-center transition-all flex-1">
                         <div>
-                            <span class="text-2xl block opacity-70 mb-2 font-semibold">หมายเลขคิว / QUEUE</span>
-                            <span class="text-[8rem] leading-none font-black tracking-tighter">${q.number}</span>
+                            <span class="text-xl sm:text-2xl block opacity-70 mb-1 font-semibold">หมายเลขคิว / QUEUE</span>
+                            <span class="text-[4rem] xl:text-[5rem] leading-none font-black tracking-tighter">${q.number}</span>
                         </div>
                         <div class="text-right">
-                            <span class="text-2xl block opacity-70 mb-2 font-semibold">ช่องบริการ / COUNTER</span>
-                            <span class="text-[10rem] leading-none font-black ${isNew ? 'text-blue-600' : 'text-slate-200'}">${q.counter}</span>
+                            <span class="text-xl sm:text-2xl block opacity-70 mb-1 font-semibold">ช่องบริการ / COUNTER</span>
+                            <span class="text-[5rem] xl:text-[7rem] leading-none font-black ${isNew ? 'text-blue-600' : 'text-slate-200'}">${q.counter}</span>
                         </div>
                     </div>`;
                 }).join('');
                 
-                const waiting = queues.filter(q => q.status === 'waiting').sort((a,b) => a.timestamp - b.timestamp).slice(0, 6);
+                // --- กำหนดให้คิวถัดไป (NEXT) แสดง 5 คิว ---
+                const waiting = queues.filter(q => q.status === 'waiting').sort((a,b) => a.timestamp - b.timestamp).slice(0, 5);
                 document.getElementById('tv-waiting-list').innerHTML = waiting.map(q => `
                     <li class="flex items-center gap-6 text-slate-200 bg-slate-700/50 p-4 rounded-xl border border-slate-700">
                         <i class="fa-solid fa-circle text-sm text-yellow-500 animate-pulse"></i>
