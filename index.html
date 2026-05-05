@@ -130,31 +130,44 @@
         const renderKiosk = (container) => {
             let resetTimer = null;
             let currentUnsubscribe = null;
+            
             const resetKioskUI = () => {
                 const resultBox = document.getElementById('kiosk-result');
                 const btnGet = document.getElementById('btn-get-q');
                 const welcome = document.getElementById('welcome-text');
+                const shortcutHint = document.getElementById('shortcut-hint');
+                
                 if(resultBox) resultBox.classList.add('hidden');
                 if(btnGet) btnGet.style.display = 'flex';
                 if(welcome) welcome.style.display = 'block';
+                if(shortcutHint) shortcutHint.style.display = 'block';
+                
                 if(resetTimer) clearTimeout(resetTimer);
                 if(currentUnsubscribe) currentUnsubscribe(); 
             };
+            
             container.innerHTML = `
                 <div class="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-600 to-blue-800 text-white p-4">
                     <div class="bg-white text-gray-800 p-10 rounded-3xl shadow-2xl text-center max-w-md w-full min-h-[400px] flex flex-col justify-center relative">
                         <div id="welcome-text">
+                            <!-- เพิ่ม Logo ก่อนปุ่มกดรับคิว -->
                             <img src="logo.png" alt="Agency Logo" class="h-24 mx-auto mb-6 object-contain" onerror="this.style.display='none'">
                             <h1 class="text-3xl font-bold mb-2">ยินดีต้อนรับ</h1>
                             <p class="text-gray-500 mb-8">กรุณากดปุ่มเพื่อรับบัตรคิว</p>
                         </div>
+                        
                         <button id="btn-get-q" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-2xl font-bold py-6 rounded-2xl shadow-lg transform transition active:scale-95 flex items-center justify-center gap-3">
                             <i class="fa-solid fa-ticket"></i> กดรับคิว
                         </button>
+                        <p id="shortcut-hint" class="text-sm text-gray-400 mt-4 font-mono select-none">
+                            <i class="fa-regular fa-keyboard"></i> Shortcut: Alt + Shift + Q
+                        </p>
+                        
                         <div id="kiosk-result" class="hidden w-full animate-fade-in flex flex-col items-center">
                             <p class="text-gray-500 text-sm">หมายเลขคิวของคุณ</p>
                             <div id="q-number" class="text-7xl font-black text-blue-600 my-2 tracking-tighter"></div>
                             
+                            <!-- พื้นที่แสดง Logo และ QR Code (หน้าหลังกด) -->
                             <div class="bg-gray-50 p-6 rounded-xl border border-gray-200 shadow-inner mb-4 w-full flex flex-col items-center justify-center">
                                 <img src="logo.png" alt="Agency Logo" class="h-16 mb-4 object-contain" onerror="this.style.display='none'">
                                 <div id="qr-code"></div>
@@ -169,6 +182,7 @@
                     </div>
                 </div>
             `;
+            
             document.getElementById('btn-get-q').onclick = () => {
                 const qRef = push(ref(db, 'queues'));
                 const qNum = "A" + Math.floor(100 + Math.random() * 900);
@@ -176,6 +190,7 @@
                 
                 document.getElementById('btn-get-q').style.display = 'none';
                 document.getElementById('welcome-text').style.display = 'none';
+                document.getElementById('shortcut-hint').style.display = 'none';
                 document.getElementById('q-number').innerText = qNum;
                 document.getElementById('kiosk-result').classList.remove('hidden');
                 
@@ -205,7 +220,23 @@
                     if (data && data.scanned === true) resetKioskUI();
                 });
             };
+            
             document.getElementById('btn-cancel').onclick = resetKioskUI;
+
+            // ==========================================
+            // --- ระบบดักจับ Shortcut Keyboard ---
+            // ==========================================
+            window.addEventListener('keydown', (e) => {
+                // ตรวจสอบการกด Alt + Shift + Q (ใช้ toLowerCase() เพื่อรองรับทั้งกรณีเปิด/ปิด CapsLock)
+                if (e.altKey && e.shiftKey && e.key.toLowerCase() === 'q') {
+                    const btnGetQ = document.getElementById('btn-get-q');
+                    // จะทำงานก็ต่อเมื่อปุ่ม "กดรับคิว" แสดงอยู่บนจอเท่านั้น (ป้องกันคิวเบิ้ลตอนแสดง QR)
+                    if (btnGetQ && btnGetQ.style.display !== 'none') {
+                        e.preventDefault(); // ป้องกัน Action อัตโนมัติของเบราว์เซอร์
+                        btnGetQ.click();    // สั่งให้จำลองการคลิกปุ่ม
+                    }
+                }
+            });
         };
 
         // ==========================================
@@ -517,7 +548,7 @@
         };
 
         // ==========================================
-        // 4. TV DISPLAY MODE (อัปเดตขนาดตัวอักษร)
+        // 4. TV DISPLAY MODE
         // ==========================================
         const renderTV = (container) => {
             let lastAnnounce = "";
@@ -585,7 +616,6 @@
                     }
                 }
                 
-                // อัปเดตขนาดตัวหนังสือช่องเรียกคิวให้ใหญ่สะใจ (text-[10rem] และ text-[8rem])
                 document.getElementById('tv-serving-list').innerHTML = serving.map((q, idx) => {
                     const isNew = idx === 0; 
                     return `
@@ -602,7 +632,6 @@
                     </div>`;
                 }).join('');
                 
-                // โชว์คิวรอ 6 คิว และขยายตัวเลขให้ใหญ่ขึ้นเป็น text-6xl พร้อมตีกรอบให้ดูชัดเจน
                 const waiting = queues.filter(q => q.status === 'waiting').sort((a,b) => a.timestamp - b.timestamp).slice(0, 6);
                 document.getElementById('tv-waiting-list').innerHTML = waiting.map(q => `
                     <li class="flex items-center gap-6 text-slate-200 bg-slate-700/50 p-4 rounded-xl border border-slate-700">
